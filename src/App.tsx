@@ -13,6 +13,9 @@ const MovieDetailPage = lazy(() =>
 const PersonDetailPage = lazy(() =>
   import('@/pages/PersonDetailPage').then((m) => ({ default: m.PersonDetailPage }))
 )
+const HeatmapPage = lazy(() =>
+  import('@/pages/HeatmapPage').then((m) => ({ default: m.HeatmapPage }))
+)
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -52,6 +55,10 @@ function AppContent() {
           <Route
             path="/person/:id"
             element={<Suspense fallback={<PageSkeleton />}><PersonDetailPage /></Suspense>}
+          />
+          <Route
+            path="/heatmap"
+            element={<Suspense fallback={<PageSkeleton />}><HeatmapPage /></Suspense>}
           />
         </Routes>
       </div>
