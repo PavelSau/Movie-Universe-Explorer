@@ -2,6 +2,34 @@ import { api } from '@/services/api'
 import type { GraphNode, GraphEdge } from '@/types/graph.types'
 import type { MovieCredits } from '@/types/movie.types'
 import type { PersonCredits } from '@/types/person.types'
+import { MAX_GRAPH_CHILD_NODES } from '@/utils/constants'
+
+function mediaNodeId(mediaType: string, id: number): string {
+  return mediaType === 'movie' ? `movie-${id}` : `tv-${id}`
+}
+
+/** Limit child nodes (keeps root at index 0 for initial graphs, pure children for expand) */
+function capNodes(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  limit: number,
+  hasRoot: boolean,
+): { nodes: GraphNode[]; edges: GraphEdge[] } {
+  const maxChildren = limit
+  const childStart = hasRoot ? 1 : 0
+  const children = nodes.slice(childStart)
+
+  if (children.length <= maxChildren) return { nodes, edges }
+
+  const kept = hasRoot ? [nodes[0]] : []
+  kept.push(...children.slice(0, maxChildren))
+  const keptIds = new Set(kept.map((n) => n.id))
+
+  return {
+    nodes: kept,
+    edges: edges.filter((e) => keptIds.has(e.source) || keptIds.has(e.target)),
+  }
+}
 
 export async function fetchMovieGraph(
   movieId: number,
@@ -22,11 +50,12 @@ export async function fetchMovieGraph(
 
   const nodes: GraphNode[] = [rootNode]
   const edges: GraphEdge[] = []
+  const seenIds = new Set<string>([rootId])
 
-  // Add cast (top 12)
-  credits.cast.slice(0, 12).forEach((member) => {
+  credits.cast.forEach((member) => {
     const nodeId = `person-${member.id}`
-    if (!nodes.find((n) => n.id === nodeId)) {
+    if (!seenIds.has(nodeId)) {
+      seenIds.add(nodeId)
       nodes.push({
         id: nodeId,
         entityId: member.id,
@@ -40,11 +69,11 @@ export async function fetchMovieGraph(
     edges.push({ source: rootId, target: nodeId, label: member.character })
   })
 
-  // Add key crew
   credits.crew.forEach((member) => {
     const nodeId = `person-${member.id}`
     const isDirector = member.job === 'Director'
-    if (!nodes.find((n) => n.id === nodeId)) {
+    if (!seenIds.has(nodeId)) {
+      seenIds.add(nodeId)
       nodes.push({
         id: nodeId,
         entityId: member.id,
@@ -58,7 +87,7 @@ export async function fetchMovieGraph(
     edges.push({ source: rootId, target: nodeId, label: member.job })
   })
 
-  return { nodes, edges }
+  return capNodes(nodes, edges, MAX_GRAPH_CHILD_NODES, true)
 }
 
 export async function fetchPersonGraph(
@@ -81,18 +110,19 @@ export async function fetchPersonGraph(
 
   const nodes: GraphNode[] = [rootNode]
   const edges: GraphEdge[] = []
+  const seenIds = new Set<string>([rootId])
 
-  // Add top movies from cast
-  credits.cast.slice(0, 15).forEach((credit) => {
-    if (credit.mediaType !== 'movie') return
-    const nodeId = `movie-${credit.id}`
-    if (!nodes.find((n) => n.id === nodeId)) {
+  // All cast credits (movies + TV)
+  credits.cast.forEach((credit) => {
+    const nodeId = mediaNodeId(credit.mediaType, credit.id)
+    if (!seenIds.has(nodeId)) {
+      seenIds.add(nodeId)
       nodes.push({
         id: nodeId,
         entityId: credit.id,
-        type: 'movie',
+        type: credit.mediaType === 'movie' ? 'movie' : 'movie', // TV shows use movie node type visually
         label: credit.title,
-        sublabel: credit.releaseDate?.slice(0, 4) || undefined,
+        sublabel: credit.releaseDate?.slice(0, 4) || credit.mediaType.toUpperCase(),
         imagePath: credit.posterPath,
         expanded: false,
       })
@@ -100,7 +130,25 @@ export async function fetchPersonGraph(
     edges.push({ source: rootId, target: nodeId, label: credit.character || 'Cast' })
   })
 
-  return { nodes, edges }
+  // All crew credits
+  credits.crew.forEach((credit) => {
+    const nodeId = mediaNodeId(credit.mediaType, credit.id)
+    if (!seenIds.has(nodeId)) {
+      seenIds.add(nodeId)
+      nodes.push({
+        id: nodeId,
+        entityId: credit.id,
+        type: 'movie',
+        label: credit.title,
+        sublabel: credit.releaseDate?.slice(0, 4) || credit.mediaType.toUpperCase(),
+        imagePath: credit.posterPath,
+        expanded: false,
+      })
+    }
+    edges.push({ source: rootId, target: nodeId, label: credit.job || 'Crew' })
+  })
+
+  return capNodes(nodes, edges, MAX_GRAPH_CHILD_NODES, true)
 }
 
 export async function expandNode(
@@ -110,61 +158,85 @@ export async function expandNode(
     const { data: credits } = await api.get<MovieCredits>(`/movie/${node.entityId}/credits`)
     const nodes: GraphNode[] = []
     const edges: GraphEdge[] = []
+    const seenIds = new Set<string>()
 
-    credits.cast.slice(0, 8).forEach((member) => {
+    credits.cast.forEach((member) => {
       const nodeId = `person-${member.id}`
-      nodes.push({
-        id: nodeId,
-        entityId: member.id,
-        type: 'actor',
-        label: member.name,
-        sublabel: member.character,
-        imagePath: member.profilePath,
-        expanded: false,
-      })
-      edges.push({ source: node.id, target: nodeId, label: member.character })
-    })
-
-    credits.crew
-      .filter((m) => m.job === 'Director')
-      .forEach((member) => {
-        const nodeId = `person-${member.id}`
+      if (!seenIds.has(nodeId)) {
+        seenIds.add(nodeId)
         nodes.push({
           id: nodeId,
           entityId: member.id,
-          type: 'director',
+          type: 'actor',
+          label: member.name,
+          sublabel: member.character,
+          imagePath: member.profilePath,
+          expanded: false,
+        })
+      }
+      edges.push({ source: node.id, target: nodeId, label: member.character })
+    })
+
+    credits.crew.forEach((member) => {
+      const nodeId = `person-${member.id}`
+      const isDirector = member.job === 'Director'
+      if (!seenIds.has(nodeId)) {
+        seenIds.add(nodeId)
+        nodes.push({
+          id: nodeId,
+          entityId: member.id,
+          type: isDirector ? 'director' : 'crew',
           label: member.name,
           sublabel: member.job,
           imagePath: member.profilePath,
           expanded: false,
         })
-        edges.push({ source: node.id, target: nodeId, label: member.job })
-      })
+      }
+      edges.push({ source: node.id, target: nodeId, label: member.job })
+    })
 
-    return { nodes, edges }
+    return capNodes(nodes, edges, MAX_GRAPH_CHILD_NODES, false)
   }
 
-  // Person node — expand to show their movies
+  // Person node — expand to show all their credits
   const { data: credits } = await api.get<PersonCredits>(`/person/${node.entityId}/credits`)
   const nodes: GraphNode[] = []
   const edges: GraphEdge[] = []
+  const seenIds = new Set<string>()
 
-  credits.cast
-    .filter((c) => c.mediaType === 'movie')
-    .slice(0, 8)
-    .forEach((credit) => {
-      const nodeId = `movie-${credit.id}`
+  credits.cast.forEach((credit) => {
+    const nodeId = mediaNodeId(credit.mediaType, credit.id)
+    if (!seenIds.has(nodeId)) {
+      seenIds.add(nodeId)
       nodes.push({
         id: nodeId,
         entityId: credit.id,
         type: 'movie',
         label: credit.title,
-        sublabel: credit.releaseDate?.slice(0, 4) || undefined,
+        sublabel: credit.releaseDate?.slice(0, 4) || credit.mediaType.toUpperCase(),
         imagePath: credit.posterPath,
         expanded: false,
       })
-      edges.push({ source: node.id, target: nodeId, label: credit.character || 'Cast' })
-    })
+    }
+    edges.push({ source: node.id, target: nodeId, label: credit.character || 'Cast' })
+  })
 
-  return { nodes, edges }
+  credits.crew.forEach((credit) => {
+    const nodeId = mediaNodeId(credit.mediaType, credit.id)
+    if (!seenIds.has(nodeId)) {
+      seenIds.add(nodeId)
+      nodes.push({
+        id: nodeId,
+        entityId: credit.id,
+        type: 'movie',
+        label: credit.title,
+        sublabel: credit.releaseDate?.slice(0, 4) || credit.mediaType.toUpperCase(),
+        imagePath: credit.posterPath,
+        expanded: false,
+      })
+    }
+    edges.push({ source: node.id, target: nodeId, label: credit.job || 'Crew' })
+  })
+
+  return capNodes(nodes, edges, MAX_GRAPH_CHILD_NODES, false)
 }

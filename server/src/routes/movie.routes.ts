@@ -47,7 +47,6 @@ router.get('/:id/credits', cacheMiddleware(3600), async (req, res, next) => {
     const response = await tmdbClient.get(`/movie/${id}/credits`)
 
     const cast = (response.data.cast || [])
-      .slice(0, 30)
       .map((c: Record<string, unknown>) => ({
         id: c.id,
         name: c.name,
@@ -56,7 +55,11 @@ router.get('/:id/credits', cacheMiddleware(3600), async (req, res, next) => {
         order: c.order,
       }))
 
-    const keyRoles = ['Director', 'Writer', 'Screenplay', 'Producer', 'Executive Producer', 'Director of Photography', 'Original Music Composer']
+    const keyRoles = [
+      'Director', 'Writer', 'Screenplay', 'Story', 'Producer', 'Executive Producer',
+      'Director of Photography', 'Original Music Composer', 'Composer', 'Editor',
+      'Production Design', 'Costume Design', 'Casting',
+    ]
     const crew = (response.data.crew || [])
       .filter((c: Record<string, unknown>) => keyRoles.includes(c.job as string))
       .map((c: Record<string, unknown>) => ({

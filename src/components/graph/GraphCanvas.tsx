@@ -100,19 +100,18 @@ export function GraphCanvas() {
       .map((e) => ({ source: nodeMap.get(e.source), target: nodeMap.get(e.target) }))
       .filter((l): l is { source: SimNode; target: SimNode } => !!l.source && !!l.target)
 
-    // Stop previous simulation
     simulationRef.current?.stop()
 
     const cx = size.width / 2
     const cy = size.height / 2
+    const n = nodes.length
+    const collisionRadius = (d: SimNode) => d.type === 'movie' ? 60 : 45
 
     if (layout === 'radial') {
-      // Radial layout: root at center, others in concentric rings
       const rootNode = nodes.find((n) => n.expanded) || nodes[0]
-      const connected = new Map<string, number>() // nodeId -> depth
+      const connected = new Map<string, number>()
       connected.set(rootNode.id, 0)
 
-      // BFS to assign depths
       const queue = [rootNode.id]
       while (queue.length > 0) {
         const current = queue.shift()!
@@ -126,48 +125,41 @@ export function GraphCanvas() {
         })
       }
 
-      // Position nodes in concentric circles
       const depthGroups = new Map<number, string[]>()
       connected.forEach((depth, id) => {
         if (!depthGroups.has(depth)) depthGroups.set(depth, [])
         depthGroups.get(depth)!.push(id)
       })
 
+      // Scale radius by count per ring so nodes don't overlap
       depthGroups.forEach((ids, depth) => {
-        const radius = depth * 160
+        const minRadius = depth * 200
+        const circumferenceNeeded = ids.length * 100
+        const radius = Math.max(minRadius, circumferenceNeeded / (2 * Math.PI))
+
         ids.forEach((id, i) => {
           const node = nodeMap.get(id)
           if (!node) return
           if (depth === 0) {
-            node.x = cx
-            node.y = cy
+            node.x = cx; node.y = cy
           } else {
             const angle = (2 * Math.PI * i) / ids.length - Math.PI / 2
             node.x = cx + radius * Math.cos(angle)
             node.y = cy + radius * Math.sin(angle)
           }
-          node.fx = node.x
-          node.fy = node.y
+          // Keep positions fixed — radial is a static layout
+          node.fx = node.x; node.fy = node.y
         })
       })
 
-      // Light simulation just for collision
+      // Minimal sim just to trigger initial render
       const sim = d3.forceSimulation<SimNode>(nodes)
-        .force('collision', d3.forceCollide<SimNode>().radius((d) => d.type === 'movie' ? 55 : 40))
-        .alphaDecay(0.1)
+        .alphaDecay(1) // stop immediately
         .on('tick', tickHandler)
-
       simulationRef.current = sim
-      // Release fixed positions after settling
-      setTimeout(() => {
-        nodes.forEach((n) => { n.fx = null; n.fy = null })
-      }, 500)
 
     } else if (layout === 'hierarchy') {
-      // Tree/hierarchy layout: root at top, children below
       const rootNode = nodes.find((n) => n.expanded) || nodes[0]
-
-      // Build adjacency for BFS
       const adj = new Map<string, string[]>()
       nodes.forEach((n) => adj.set(n.id, []))
       edges.forEach((e) => {
@@ -175,64 +167,62 @@ export function GraphCanvas() {
         adj.get(e.target)?.push(e.source)
       })
 
-      // BFS tree
       const visited = new Set<string>()
       const levels: string[][] = []
       visited.add(rootNode.id)
       let currentLevel = [rootNode.id]
-
       while (currentLevel.length > 0) {
         levels.push(currentLevel)
         const nextLevel: string[] = []
         currentLevel.forEach((id) => {
           (adj.get(id) || []).forEach((neighbor) => {
             if (!visited.has(neighbor)) {
-              visited.add(neighbor)
-              nextLevel.push(neighbor)
+              visited.add(neighbor); nextLevel.push(neighbor)
             }
           })
         })
         currentLevel = nextLevel
       }
 
-      // Position: each level is a row
-      const levelHeight = 150
-      const startY = cy - ((levels.length - 1) * levelHeight) / 2
-
+      const levelHeight = 200
+      // Use the widest level to determine total width, give each node enough space
       levels.forEach((ids, depth) => {
-        const levelWidth = Math.min(size.width - 100, ids.length * 120)
-        const startX = cx - levelWidth / 2
-        const spacing = ids.length > 1 ? levelWidth / (ids.length - 1) : 0
+        const nodeSpacing = 120
+        const levelWidth = ids.length * nodeSpacing
+        const startX = cx - levelWidth / 2 + nodeSpacing / 2
 
         ids.forEach((id, i) => {
           const node = nodeMap.get(id)
           if (!node) return
-          node.x = ids.length === 1 ? cx : startX + spacing * i
-          node.y = startY + depth * levelHeight
-          node.fx = node.x
-          node.fy = node.y
+          node.x = startX + i * nodeSpacing
+          node.y = depth * levelHeight + 100
+          // Keep positions fixed — hierarchy is a static layout
+          node.fx = node.x; node.fy = node.y
         })
       })
 
       const sim = d3.forceSimulation<SimNode>(nodes)
-        .force('collision', d3.forceCollide<SimNode>().radius((d) => d.type === 'movie' ? 55 : 40))
-        .alphaDecay(0.1)
+        .alphaDecay(1)
         .on('tick', tickHandler)
-
       simulationRef.current = sim
-      setTimeout(() => {
-        nodes.forEach((n) => { n.fx = null; n.fy = null })
-      }, 800)
 
     } else {
-      // Default: force-directed
+      // Force-directed — scale spacing with node count
+      const linkDist = Math.max(180, 100 + n * 1.5)
+      const chargeStr = Math.min(-200, -400 - n * 2)
+
+      // Clear any fixed positions from other layouts
+      nodes.forEach((nd) => { nd.fx = null; nd.fy = null })
+
       const sim = d3.forceSimulation<SimNode>(nodes)
-        .force('link', d3.forceLink(linkData).distance(140).strength(0.4))
-        .force('charge', d3.forceManyBody().strength(-350).distanceMax(500))
-        .force('center', d3.forceCenter(cx, cy).strength(0.05))
-        .force('collision', d3.forceCollide<SimNode>().radius((d) => d.type === 'movie' ? 55 : 40))
-        .alphaDecay(0.03)
-        .velocityDecay(0.4)
+        .force('link', d3.forceLink(linkData).distance(linkDist).strength(0.3))
+        .force('charge', d3.forceManyBody().strength(chargeStr).distanceMax(800))
+        .force('center', d3.forceCenter(cx, cy).strength(0.03))
+        .force('collision', d3.forceCollide<SimNode>().radius(collisionRadius).strength(0.8))
+        .force('x', d3.forceX(cx).strength(0.015))
+        .force('y', d3.forceY(cy).strength(0.015))
+        .alphaDecay(0.02)
+        .velocityDecay(0.45)
         .on('tick', tickHandler)
 
       simulationRef.current = sim
@@ -278,8 +268,8 @@ export function GraphCanvas() {
   // Expand/collapse
   const handleNodeClick = useCallback(async (node: SimNode) => {
     if (expandedNodes.has(node.id)) {
+      // removeChildNodes already removes from expandedNodes
       removeChildNodes(node.id)
-      toggleExpand(node.id)
       forceRender((n) => n + 1)
       return
     }
