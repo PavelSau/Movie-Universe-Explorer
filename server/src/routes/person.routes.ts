@@ -50,6 +50,7 @@ router.get('/:id/credits', cacheMiddleware(3600), async (req, res, next) => {
         releaseDate: c.release_date || c.first_air_date || null,
         voteAverage: c.vote_average || null,
         popularity: c.popularity || 0,
+        genreIds: (c.genre_ids as number[]) || [],
       }))
 
     const seenCrew = new Set<number>()
@@ -72,6 +73,7 @@ router.get('/:id/credits', cacheMiddleware(3600), async (req, res, next) => {
         releaseDate: c.release_date || c.first_air_date || null,
         voteAverage: c.vote_average || null,
         popularity: c.popularity || 0,
+        genreIds: (c.genre_ids as number[]) || [],
       }))
 
     res.json({ cast, crew })

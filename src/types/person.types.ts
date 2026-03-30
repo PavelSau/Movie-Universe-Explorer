@@ -21,6 +21,7 @@ export interface PersonCreditItem {
   releaseDate: string | null
   voteAverage: number | null
   popularity: number
+  genreIds: number[]
 }
 
 export interface PersonCredits {
