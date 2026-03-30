@@ -20,16 +20,16 @@ export function ThemeToggle() {
           setTheme(value[0] as 'light' | 'dark' | 'system')
         }
       }}
-      className="rounded-full bg-muted p-1"
+      className="rounded-full border border-border/50 bg-muted/50 p-1"
     >
       {themes.map(({ value, icon: Icon, label }) => (
         <ToggleGroupItem
           key={value}
           value={value}
           aria-label={`Switch to ${label} theme`}
-          className="rounded-full px-2.5 py-1.5 data-[pressed]:bg-background data-[pressed]:shadow-sm"
+          className="rounded-full px-2.5 py-1.5 data-[pressed]:bg-primary data-[pressed]:text-primary-foreground data-[pressed]:shadow-md data-[pressed]:shadow-primary/25"
         >
-          <Icon size={16} />
+          <Icon size={14} />
         </ToggleGroupItem>
       ))}
     </ToggleGroup>

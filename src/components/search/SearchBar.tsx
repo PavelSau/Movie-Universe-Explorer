@@ -41,16 +41,25 @@ export function SearchBar() {
 
   return (
     <div ref={containerRef} className="relative w-full max-w-2xl mx-auto">
+      {/* Glow behind the search bar */}
+      <div className={cn(
+        'absolute -inset-1 rounded-2xl bg-glow blur-xl transition-opacity duration-300',
+        hasResults ? 'opacity-100' : 'opacity-0',
+      )} />
+
       <div
         className={cn(
-          'flex items-center gap-3 rounded-xl border bg-card px-4 py-3',
-          'shadow-sm transition-all duration-200',
+          'relative flex items-center gap-3 rounded-xl border bg-card px-5 py-3.5',
+          'shadow-lg shadow-primary/5 backdrop-blur-sm transition-all duration-200',
           hasResults
-            ? 'border-primary ring-2 ring-primary/20 shadow-md'
-            : 'border-border hover:border-primary/50',
+            ? 'border-primary/40 shadow-xl shadow-primary/10'
+            : 'border-border hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5',
         )}
       >
-        <Search size={20} className="shrink-0 text-muted-foreground" />
+        <Search size={20} className={cn(
+          'shrink-0 transition-colors duration-200',
+          hasResults ? 'text-primary' : 'text-muted-foreground'
+        )} />
         <Input
           variant="ghost"
           type="text"

@@ -89,38 +89,45 @@ A data visualization app for exploring movie industry connections. Users search 
 ### Design System & UI Quality
 This app targets a premium, modern UI — as if designed by a senior UI designer. Every screen, component, and interaction must feel polished, intentional, and consistent.
 
-**Visual identity:**
+**Visual identity — cinematic, premium, modern:**
 - Clean, spacious layouts with generous whitespace — never cramped
-- Subtle depth via layered surfaces: cards float over backgrounds with soft shadows and/or borders
-- Smooth micro-interactions: hover states, focus rings, transitions on every interactive element (150–300ms ease)
-- Rounded corners consistently applied (`rounded-lg` for cards/panels, `rounded-full` for avatars/badges)
-- Typography hierarchy: clear distinction between headings, body, captions, labels — use font-weight and size, not just size
-- Icons: use Lucide React for a consistent, modern icon set — no mixing icon libraries
+- Layered depth: cards use `bg-card backdrop-blur-sm` over gradient backgrounds, semi-transparent borders (`border-border/50`)
+- Glassmorphism: dropdowns, popovers, header use `backdrop-blur-xl` + semi-transparent backgrounds (`bg-popover/95`, `bg-background/60`)
+- Gradient accents: hero sections use `bg-gradient-to-br from-hero-from to-hero-to` with soft blurred orbs (`blur-3xl`) for depth
+- Gradient text for emphasis: `bg-gradient-to-r from-primary to-accent-foreground bg-clip-text text-transparent`
+- Glow effects: active/focused elements use `shadow-primary/10` or `shadow-primary/25`; search bar has a `bg-glow blur-xl` layer behind it when active
+- Smooth micro-interactions: hover states lift elements (`hover:-translate-y-1`), scale images (`group-hover:scale-110`), transitions 200-500ms
+- Rounded corners: `rounded-xl` for cards/panels, `rounded-full` for pills/badges/toggles, `rounded-lg` for small elements
+- Typography hierarchy: font-weight + size + tracking; section headers get icon + subtitle pairs
+- Icons: Lucide React only — no mixing icon libraries
+- Active toggles/tabs use `bg-primary text-primary-foreground` with `shadow-md shadow-primary/25`
 
 **Light/Dark theme:**
 - Implemented via Tailwind `dark:` variant with `class` strategy on `<html>`
 - User preference stored in `useAppStore` (Zustand) as `theme: 'light' | 'dark' | 'system'`
 - On mount, resolve `'system'` via `matchMedia('(prefers-color-scheme: dark)')` and listen for changes
-- Toggle component in Header — animated icon transition (sun ↔ moon)
+- Toggle in Header using ToggleGroup with primary-colored active state
 - Every component must support both themes — never hardcode a color that only works on one background
 - D3 visualizations consume theme-aware colors from `src/utils/theme.ts` which reads the current resolved theme
 
-**Color palette (defined in Tailwind theme + CSS variables):**
-- Surfaces: light mode uses white/gray-50/gray-100 layers; dark mode uses gray-950/gray-900/gray-800 layers
-- Primary accent: indigo-500 (interactive elements, active states, links)
-- Secondary accent: violet-500 (visualization highlights, graph connections)
-- Success/Warning/Error: emerald-500 / amber-500 / rose-500
-- Text: gray-900/gray-700/gray-500 in light; gray-50/gray-300/gray-500 in dark
-- All colors referenced via CSS custom properties so D3/Canvas can read them at runtime
+**Color palette — violet/purple cinematic theme (defined in `global.css` CSS variables):**
+- Light: warm lavender background (`oklch 0.975, hue 280`), deep violet primary, soft purple accents, semi-transparent card surfaces
+- Dark: deep blue-purple background (`oklch 0.13, hue 280`), electric violet primary, rich dark surfaces with subtle purple tint
+- Primary: violet (`oklch hue 277`) — used for buttons, active states, links, badges, glows
+- Accent: purple-pink (`oklch hue 300`) — used for secondary highlights, gradient endpoints
+- Custom tokens: `hero-from`/`hero-to` (gradient backgrounds), `glow` (glow effects behind active elements), `overlay`/`overlay-foreground` (elements on top of images)
+- Chart colors: 5 vibrant colors spanning violet → pink → blue for data visualization
+- All colors via CSS custom properties in `:root` and `.dark` — auto-switch on theme change
 
 **Consistency rules:**
-- Spacing scale: 4px base (Tailwind default) — use `p-4`, `gap-6`, `mb-8`, etc. consistently; avoid arbitrary values like `p-[13px]`
-- Border radius: `rounded-lg` (8px) for containers, `rounded-xl` (12px) for modals/large cards, `rounded-full` for pills/avatars
-- Shadow scale: `shadow-sm` for subtle cards, `shadow-md` for elevated panels, `shadow-lg` for modals/dropdowns
-- Transitions: `transition-colors duration-200` on all interactive elements; `transition-all duration-300` for layout shifts
-- Cursor: `cursor-pointer` on all clickable elements (buttons, toggles, selects, links) — enforced globally in `global.css` base layer
-- Focus states: `outline-2 outline-offset-2 outline-primary` on all focusable elements — enforced globally in `global.css` base layer, never remove or override with `outline-none`
-- Disabled states: `opacity-50 cursor-not-allowed` — consistent across buttons, inputs, links
+- Spacing scale: 4px base (Tailwind default) — use `p-4`, `gap-5`, `mb-8`, etc. consistently; avoid arbitrary values like `p-[13px]`
+- Border radius: `rounded-xl` for cards/panels/modals, `rounded-full` for pills/avatars/toggles, `rounded-lg` for small elements
+- Shadow scale: `shadow-lg shadow-primary/5` for cards at rest, `shadow-xl shadow-primary/10` for hovered/elevated elements
+- Borders: use `border-border/50` (semi-transparent) for subtle separation, `border-primary/30` for active/hovered states
+- Transitions: `duration-200` for color/opacity changes, `duration-300` for layout/transform, `duration-500` for image zoom
+- Cursor: `cursor-pointer` on all clickable elements — enforced inside shadcn components
+- Focus states: `outline-2 outline-offset-2 outline-primary` — enforced inside shadcn components, never override
+- Disabled states: `opacity-50 cursor-not-allowed` — consistent across all interactive elements
 - Loading states: skeleton shimmer animation (not spinners) matching the shape of the content being loaded
 
 ### shadcn/ui Components

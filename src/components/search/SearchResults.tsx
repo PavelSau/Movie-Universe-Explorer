@@ -15,10 +15,10 @@ interface SearchResultsProps {
 export function SearchResults({ results, isLoading, onClose }: SearchResultsProps) {
   if (isLoading) {
     return (
-      <div className="absolute top-full left-0 right-0 z-50 mt-2 rounded-xl border border-border bg-popover p-2 shadow-lg">
+      <div className="absolute top-full left-0 right-0 z-50 mt-2 rounded-xl border border-border/50 bg-popover/95 p-2 shadow-xl backdrop-blur-xl">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 p-2">
-            <Skeleton className="h-14 w-10 shrink-0 rounded" />
+            <Skeleton className="h-14 w-10 shrink-0 rounded-lg" />
             <div className="flex-1 space-y-2">
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-3 w-1/2" />
@@ -31,14 +31,14 @@ export function SearchResults({ results, isLoading, onClose }: SearchResultsProp
 
   if (results.length === 0) {
     return (
-      <div className="absolute top-full left-0 right-0 z-50 mt-2 rounded-xl border border-border bg-popover p-8 text-center shadow-lg">
+      <div className="absolute top-full left-0 right-0 z-50 mt-2 rounded-xl border border-border/50 bg-popover/95 p-8 text-center shadow-xl backdrop-blur-xl">
         <p className="text-muted-foreground">No results found</p>
       </div>
     )
   }
 
   return (
-    <div className="absolute top-full left-0 right-0 z-50 mt-2 rounded-xl border border-border bg-popover shadow-lg">
+    <div className="absolute top-full left-0 right-0 z-50 mt-2 rounded-xl border border-border/50 bg-popover/95 shadow-xl backdrop-blur-xl">
       <ScrollArea className="max-h-96 p-2">
         {results.map((result) => (
           <Button
@@ -52,7 +52,7 @@ export function SearchResults({ results, isLoading, onClose }: SearchResultsProp
               alt={result.title}
               size="thumbnail"
               type={result.mediaType}
-              className="h-14 w-10 shrink-0 rounded"
+              className="h-14 w-10 shrink-0 rounded-lg"
             />
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium text-foreground">
@@ -72,7 +72,7 @@ export function SearchResults({ results, isLoading, onClose }: SearchResultsProp
                   </span>
                 )}
                 {result.voteAverage != null && result.voteAverage > 0 && (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-primary font-medium">
                     ★ {result.voteAverage.toFixed(1)}
                   </span>
                 )}
