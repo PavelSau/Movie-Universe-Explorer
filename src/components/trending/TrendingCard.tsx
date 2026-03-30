@@ -11,7 +11,7 @@ interface TrendingCardProps {
 
 export function TrendingCard({ movie, rank }: TrendingCardProps) {
   return (
-    <Card className="group relative overflow-hidden p-0 border-border/50 bg-card backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30">
+    <Card className="group relative p-0 border-border/50 bg-card backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30">
       <div className="relative aspect-[2/3] overflow-hidden">
         <Poster
           path={movie.posterPath}

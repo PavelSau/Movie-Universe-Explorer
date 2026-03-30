@@ -23,11 +23,11 @@ function AppContent() {
       <Header />
 
       {/* Hero section with gradient background */}
-      <div className="relative overflow-hidden">
-        {/* Gradient mesh background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-hero-from via-transparent to-hero-to" />
-        <div className="absolute top-0 left-1/4 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 h-96 w-96 rounded-full bg-accent/10 blur-3xl" />
+      <div className="relative">
+        {/* Gradient mesh background — pointer-events-none so it doesn't block clicks */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-hero-from via-transparent to-hero-to" />
+        <div className="pointer-events-none absolute top-0 left-1/4 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 right-1/4 h-96 w-96 rounded-full bg-accent/10 blur-3xl" />
 
         <main className="relative mx-auto max-w-7xl px-4 pt-16 pb-12 sm:px-6 lg:px-8">
           <div className="text-center">
