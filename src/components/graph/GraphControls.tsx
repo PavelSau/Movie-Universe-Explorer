@@ -41,7 +41,7 @@ export function GraphControls() {
           <Users size={12} /> {personCount}
         </Badge>
         <Badge variant="secondary" className="gap-1 text-xs">
-          <Layers size={12} /> {nodes.length}/150
+          <Layers size={12} /> {nodes.length}
         </Badge>
       </div>
     </div>
