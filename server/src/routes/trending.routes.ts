@@ -29,4 +29,25 @@ router.get('/', cacheMiddleware(900), async (req, res, next) => {
   }
 })
 
+router.get('/people', cacheMiddleware(900), async (req, res, next) => {
+  try {
+    const { window = 'day' } = req.query
+    const timeWindow = window === 'week' ? 'week' : 'day'
+
+    const response = await tmdbClient.get(`/trending/person/${timeWindow}`)
+
+    const results = response.data.results.map((item: Record<string, unknown>) => ({
+      id: item.id,
+      name: item.name,
+      profilePath: item.profile_path,
+      knownForDepartment: item.known_for_department,
+      popularity: item.popularity,
+    }))
+
+    res.json({ results, timeWindow })
+  } catch (err) {
+    next(err)
+  }
+})
+
 export { router as trendingRoutes }

@@ -33,6 +33,19 @@ export interface TrendingResponse {
   timeWindow: 'day' | 'week'
 }
 
+export interface TrendingPerson {
+  id: number
+  name: string
+  profilePath: string | null
+  knownForDepartment: string | null
+  popularity: number
+}
+
+export interface TrendingPeopleResponse {
+  results: TrendingPerson[]
+  timeWindow: 'day' | 'week'
+}
+
 export interface Genre {
   id: number
   name: string

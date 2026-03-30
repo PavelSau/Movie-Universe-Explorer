@@ -1,6 +1,7 @@
 import { Sparkles } from 'lucide-react'
 import { SearchBar } from '@/components/search/SearchBar'
 import { TrendingDashboard } from '@/components/trending/TrendingDashboard'
+import { TrendingPeopleDashboard } from '@/components/trending/TrendingPeopleDashboard'
 
 export function HomePage() {
   return (
@@ -37,6 +38,7 @@ export function HomePage() {
       {/* Trending section */}
       <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
         <TrendingDashboard />
+        <TrendingPeopleDashboard />
       </div>
     </>
   )
