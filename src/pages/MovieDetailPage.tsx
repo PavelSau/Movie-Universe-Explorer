@@ -1,5 +1,6 @@
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Star, Clock, Calendar, DollarSign, Users } from 'lucide-react'
+import { GraphView } from '@/components/graph/GraphView'
 import { useMovieDetails, useMovieCredits } from '@/hooks/useMovieDetails'
 import { Poster } from '@/components/shared/Poster'
 import { Badge } from '@/components/ui/badge'
@@ -209,6 +210,14 @@ export function MovieDetailPage() {
             </div>
           </div>
         )}
+
+        {/* Connection Graph */}
+        <GraphView
+          entityType="movie"
+          entityId={movie.id}
+          title={movie.title}
+          imagePath={movie.posterPath}
+        />
 
         {/* Release info */}
         {movie.releaseDate && (

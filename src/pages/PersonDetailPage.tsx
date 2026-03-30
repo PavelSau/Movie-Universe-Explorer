@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Star, MapPin, Cake, Briefcase, ChevronDown, ChevronUp } from 'lucide-react'
+import { GraphView } from '@/components/graph/GraphView'
 import { usePersonDetails, usePersonCredits } from '@/hooks/usePersonDetails'
 import { Poster } from '@/components/shared/Poster'
 import { Badge } from '@/components/ui/badge'
@@ -109,6 +110,17 @@ export function PersonDetailPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Connection Graph */}
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <GraphView
+          entityType="person"
+          entityId={person.id}
+          title={person.name}
+          imagePath={person.profilePath}
+          knownFor={person.knownForDepartment}
+        />
       </div>
 
       {/* Filmography */}
