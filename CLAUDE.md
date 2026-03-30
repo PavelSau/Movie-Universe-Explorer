@@ -118,19 +118,33 @@ This app targets a premium, modern UI — as if designed by a senior UI designer
 - Border radius: `rounded-lg` (8px) for containers, `rounded-xl` (12px) for modals/large cards, `rounded-full` for pills/avatars
 - Shadow scale: `shadow-sm` for subtle cards, `shadow-md` for elevated panels, `shadow-lg` for modals/dropdowns
 - Transitions: `transition-colors duration-200` on all interactive elements; `transition-all duration-300` for layout shifts
-- Focus states: visible `ring-2 ring-indigo-500 ring-offset-2` on all focusable elements — never remove outline without replacement
+- Cursor: `cursor-pointer` on all clickable elements (buttons, toggles, selects, links) — enforced globally in `global.css` base layer
+- Focus states: `outline-2 outline-offset-2 outline-primary` on all focusable elements — enforced globally in `global.css` base layer, never remove or override with `outline-none`
 - Disabled states: `opacity-50 cursor-not-allowed` — consistent across buttons, inputs, links
 - Loading states: skeleton shimmer animation (not spinners) matching the shape of the content being loaded
 
+### shadcn/ui Components
+- All UI primitives (Button, Input, Card, Badge, Skeleton, Tabs, Tooltip, ScrollArea, Dialog, Sheet, Toggle, ToggleGroup) come from `src/components/ui/` — ALWAYS use them, NEVER use raw HTML elements (`<button>`, `<input>`, `<select>`) in feature components
+- If a shadcn component doesn't support a use case, add a new `variant` to that component (e.g., Input has `default` and `ghost` variants) — do NOT bypass it with a raw element
+- All interactive behavior (cursor-pointer, focus outlines, disabled states) is defined inside these components — NEVER override or duplicate these styles in feature components
+- `cn()` from `@/lib/utils` is the only class merging utility — no other `cn` or `clsx` wrapper
+
+### Colors — STRICT RULES
+- **NEVER hardcode color values** in components. No `bg-black`, `text-white`, `bg-gray-*`, `border-gray-*`, `text-gray-*`, `bg-indigo-*`, etc.
+- **ALWAYS use CSS variable-based semantic tokens**: `bg-background`, `text-foreground`, `bg-card`, `text-card-foreground`, `bg-muted`, `text-muted-foreground`, `bg-primary`, `text-primary-foreground`, `bg-secondary`, `text-secondary-foreground`, `bg-accent`, `text-accent-foreground`, `bg-popover`, `text-popover-foreground`, `bg-destructive`, `text-destructive`, `border-border`, `border-input`, `ring-ring`, `bg-overlay`, `text-overlay-foreground`
+- These tokens are defined in `global.css` under `:root` (light) and `.dark` (dark) — they auto-switch on theme change
+- If you need a new semantic color (e.g., for a new surface type), add it to BOTH `:root` and `.dark` in `global.css` and register it in `@theme inline` — never use raw oklch/hex/rgb values in components
+- The ONLY exception for non-variable colors: brand-specific accent on visualization elements (e.g., `fill-amber-400` for star rating icons) where the color is intentionally the same in both themes
+- For elements overlaying images (badges, tooltips on posters): use `bg-overlay text-overlay-foreground`
+
 ### Tailwind CSS
 - Use Tailwind utility classes directly in JSX — no separate CSS files per component
-- Extract repeated class combinations into components, not `@apply` (prefer composition over abstraction)
-- Use `@apply` only in `global.css` for base element styles (e.g., body, headings) if needed
+- Extract repeated class combinations into component variants (shadcn CVA pattern), not `@apply`
+- Use `@apply` only in `global.css` for base element styles (e.g., body, scrollbar)
 - Custom theme values (colors, spacing, fonts) defined via `@theme` in `global.css` and CSS custom properties
 - Use Tailwind's responsive prefixes (`sm:`, `md:`, `lg:`) — mobile-first approach
 - For D3/SVG elements that Tailwind can't style: read CSS custom properties via `getComputedStyle()` in `src/utils/theme.ts`
 - Dark mode via Tailwind `dark:` variant with class strategy on `<html>` element
-- Use `cn()` helper (clsx + tailwind-merge) for conditional class composition
 - No `!important` ever
 - Keep class strings readable — break long className onto multiple lines
 
@@ -193,5 +207,8 @@ This app targets a premium, modern UI — as if designed by a senior UI designer
 - Put TMDb API key in frontend code or commit it to git
 - Use `dangerouslySetInnerHTML`
 - Use inline styles (use Tailwind classes) — exception: D3/SVG dynamic positioning
+- Use raw HTML elements (`<button>`, `<input>`, `<select>`) — ALWAYS use shadcn components from `src/components/ui/`
+- Hardcode colors (`bg-black`, `text-white`, `bg-gray-*`, `text-gray-*`, etc.) — ALWAYS use CSS variable tokens (`bg-background`, `text-foreground`, `bg-primary`, etc.)
+- Override focus/cursor/disabled styles from shadcn components in feature components — these are defined once in `src/components/ui/` and must not be duplicated
 - Create barrel files (index.ts re-exports) — import directly from source
 - Add comments that restate what the code does — only comment *why* when non-obvious

@@ -1,6 +1,6 @@
 import { Sun, Moon, Monitor } from 'lucide-react'
 import { useAppStore } from '@/stores/useAppStore'
-import { cn } from '@/utils/cn'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 const themes = [
   { value: 'light' as const, icon: Sun, label: 'Light' },
@@ -13,22 +13,25 @@ export function ThemeToggle() {
   const setTheme = useAppStore((s) => s.setTheme)
 
   return (
-    <div className="flex items-center gap-1 rounded-full bg-gray-100 p-1 dark:bg-gray-800">
+    <ToggleGroup
+      value={[theme]}
+      onValueChange={(value) => {
+        if (value.length > 0) {
+          setTheme(value[0] as 'light' | 'dark' | 'system')
+        }
+      }}
+      className="rounded-full bg-muted p-1"
+    >
       {themes.map(({ value, icon: Icon, label }) => (
-        <button
+        <ToggleGroupItem
           key={value}
-          onClick={() => setTheme(value)}
+          value={value}
           aria-label={`Switch to ${label} theme`}
-          className={cn(
-            'rounded-full p-2 transition-colors duration-200',
-            theme === value
-              ? 'bg-white text-indigo-600 shadow-sm dark:bg-gray-700 dark:text-indigo-400'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-          )}
+          className="rounded-full px-2.5 py-1.5 data-[pressed]:bg-background data-[pressed]:shadow-sm"
         >
           <Icon size={16} />
-        </button>
+        </ToggleGroupItem>
       ))}
-    </div>
+    </ToggleGroup>
   )
 }

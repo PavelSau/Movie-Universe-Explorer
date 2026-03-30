@@ -4,8 +4,10 @@ import { useAppStore } from '@/stores/useAppStore'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useMovieSearch } from '@/hooks/useMovieSearch'
 import { SearchResults } from '@/components/search/SearchResults'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { SEARCH_DEBOUNCE_MS } from '@/utils/constants'
-import { cn } from '@/utils/cn'
+import { cn } from '@/lib/utils'
 
 export function SearchBar() {
   const [inputValue, setInputValue] = useState('')
@@ -35,20 +37,22 @@ export function SearchBar() {
     setIsOpen(false)
   }
 
+  const hasResults = isOpen && data?.results.length
+
   return (
     <div ref={containerRef} className="relative w-full max-w-2xl mx-auto">
       <div
         className={cn(
-          'flex items-center gap-3 rounded-xl border bg-white px-4 py-3',
+          'flex items-center gap-3 rounded-xl border bg-card px-4 py-3',
           'shadow-sm transition-all duration-200',
-          'dark:bg-gray-900 dark:border-gray-700',
-          isOpen && data?.results.length
-            ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-md'
-            : 'border-gray-300 hover:border-gray-400 dark:hover:border-gray-600',
+          hasResults
+            ? 'border-primary ring-2 ring-primary/20 shadow-md'
+            : 'border-border hover:border-primary/50',
         )}
       >
-        <Search size={20} className="shrink-0 text-gray-400" />
-        <input
+        <Search size={20} className="shrink-0 text-muted-foreground" />
+        <Input
+          variant="ghost"
           type="text"
           value={inputValue}
           onChange={(e) => {
@@ -57,15 +61,16 @@ export function SearchBar() {
           }}
           onFocus={() => setIsOpen(true)}
           placeholder="Search movies, actors, directors..."
-          className="w-full bg-transparent text-gray-900 placeholder-gray-400 outline-none dark:text-white"
         />
         {inputValue && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={handleClear}
-            className="shrink-0 rounded-full p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+            className="shrink-0 rounded-full"
           >
             <X size={16} />
-          </button>
+          </Button>
         )}
       </div>
 

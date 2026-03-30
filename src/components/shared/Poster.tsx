@@ -1,6 +1,6 @@
 import { Film, User } from 'lucide-react'
 import { POSTER_SIZES } from '@/utils/constants'
-import { cn } from '@/utils/cn'
+import { cn } from '@/lib/utils'
 
 interface PosterProps {
   path: string | null
@@ -14,13 +14,8 @@ export function Poster({ path, alt, size = 'card', type = 'movie', className }: 
   if (!path) {
     const Icon = type === 'person' ? User : Film
     return (
-      <div
-        className={cn(
-          'flex items-center justify-center bg-gray-100 dark:bg-gray-800',
-          className,
-        )}
-      >
-        <Icon size={32} className="text-gray-400 dark:text-gray-600" />
+      <div className={cn('flex items-center justify-center bg-muted', className)}>
+        <Icon size={32} className="text-muted-foreground" />
       </div>
     )
   }
