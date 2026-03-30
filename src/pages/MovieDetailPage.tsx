@@ -1,6 +1,7 @@
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Star, Clock, Calendar, DollarSign, Users } from 'lucide-react'
 import { GraphView } from '@/components/graph/GraphView'
+import { WatchProviders } from '@/components/movie/WatchProviders'
 import { useMovieDetails, useMovieCredits } from '@/hooks/useMovieDetails'
 import { Poster } from '@/components/shared/Poster'
 import { Badge } from '@/components/ui/badge'
@@ -210,6 +211,9 @@ export function MovieDetailPage() {
             </div>
           </div>
         )}
+
+        {/* Where to Watch */}
+        <WatchProviders movieId={movie.id} />
 
         {/* Connection Graph */}
         <GraphView
