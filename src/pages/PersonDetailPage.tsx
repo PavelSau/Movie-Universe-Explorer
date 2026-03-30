@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Star, MapPin, Cake, Briefcase, ChevronDown, ChevronUp } from 'lucide-react'
 import { GraphView } from '@/components/graph/GraphView'
 import { TimelineView } from '@/components/timeline/TimelineView'
+import { GenreRadar } from '@/components/person/GenreRadar'
 import { usePersonDetails, usePersonCredits } from '@/hooks/usePersonDetails'
 import { Poster } from '@/components/shared/Poster'
 import { Badge } from '@/components/ui/badge'
@@ -17,7 +18,7 @@ export function PersonDetailPage() {
   const { id } = useParams<{ id: string }>()
   const personId = Number(id)
   const { data: person, isLoading, error } = usePersonDetails(personId)
-  const { data: credits } = usePersonCredits(personId)
+  const { data: credits, isLoading: creditsLoading } = usePersonCredits(personId)
   const [showFullBio, setShowFullBio] = useState(false)
 
   if (isLoading) return <PersonDetailSkeleton />
@@ -127,6 +128,11 @@ export function PersonDetailPage() {
       {/* Career Timeline */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <TimelineView personId={person.id} />
+      </div>
+
+      {/* Genre Radar */}
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <GenreRadar credits={credits} isLoading={creditsLoading} />
       </div>
 
       {/* Filmography */}
