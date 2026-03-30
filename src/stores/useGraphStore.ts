@@ -1,12 +1,15 @@
 import { create } from 'zustand'
 import type { GraphNode, GraphEdge } from '@/types/graph.types'
 
+export type GraphLayout = 'force' | 'radial' | 'hierarchy'
+
 interface GraphState {
   nodes: GraphNode[]
   edges: GraphEdge[]
   expandedNodes: Set<string>
   zoomLevel: number
   filterByType: 'all' | 'movie' | 'person'
+  layout: GraphLayout
 
   setGraph: (nodes: GraphNode[], edges: GraphEdge[]) => void
   addNodes: (nodes: GraphNode[], edges: GraphEdge[]) => void
@@ -14,10 +17,11 @@ interface GraphState {
   toggleExpand: (nodeId: string) => void
   setZoom: (zoom: number) => void
   setFilter: (filter: 'all' | 'movie' | 'person') => void
+  setLayout: (layout: GraphLayout) => void
   reset: () => void
 }
 
-const MAX_NODES = 150
+const MAX_NODES = 1000
 
 export const useGraphStore = create<GraphState>((set, get) => ({
   nodes: [],
@@ -25,6 +29,7 @@ export const useGraphStore = create<GraphState>((set, get) => ({
   expandedNodes: new Set(),
   zoomLevel: 1,
   filterByType: 'all',
+  layout: 'force',
 
   setGraph: (nodes, edges) => set({ nodes, edges, expandedNodes: new Set() }),
 
@@ -101,5 +106,6 @@ export const useGraphStore = create<GraphState>((set, get) => ({
 
   setZoom: (zoom) => set({ zoomLevel: zoom }),
   setFilter: (filter) => set({ filterByType: filter }),
-  reset: () => set({ nodes: [], edges: [], expandedNodes: new Set(), zoomLevel: 1, filterByType: 'all' }),
+  setLayout: (layout) => set({ layout }),
+  reset: () => set({ nodes: [], edges: [], expandedNodes: new Set(), zoomLevel: 1, filterByType: 'all', layout: 'force' }),
 }))

@@ -8,6 +8,8 @@ interface GraphTooltipProps {
   x: number
   y: number
   containerRef: React.RefObject<SVGSVGElement | null>
+  onMouseEnter: () => void
+  onMouseLeave: () => void
 }
 
 const typeLabels: Record<string, string> = {
@@ -18,8 +20,7 @@ const typeLabels: Record<string, string> = {
   person: 'Person',
 }
 
-export function GraphTooltip({ node, x, y, containerRef }: GraphTooltipProps) {
-  // Convert SVG-world position to viewport-relative position
+export function GraphTooltip({ node, x, y, containerRef, onMouseEnter, onMouseLeave }: GraphTooltipProps) {
   const rect = containerRef.current?.getBoundingClientRect()
   const left = rect ? x - rect.left + 40 : 0
   const top = rect ? y - rect.top - 20 : 0
@@ -30,9 +31,10 @@ export function GraphTooltip({ node, x, y, containerRef }: GraphTooltipProps) {
 
   return (
     <div
-      className="pointer-events-auto absolute z-50 max-w-xs rounded-lg border border-border/50 bg-popover/95 px-3 py-2 text-sm shadow-xl backdrop-blur-xl"
+      className="absolute z-50 max-w-xs rounded-lg border border-border/50 bg-popover/95 px-3 py-2 text-sm shadow-xl backdrop-blur-xl"
       style={{ left, top }}
-      onMouseLeave={(e) => e.stopPropagation()}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       <p className="font-semibold text-foreground">{node.label}</p>
       {node.sublabel && (

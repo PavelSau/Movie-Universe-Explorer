@@ -77,9 +77,9 @@ export function GraphView({ entityType, entityId, title, imagePath, knownFor }: 
       <Separator className="mb-6 bg-border/50" />
 
       {isVisible && (
-        <div className="relative h-[70vh] rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm">
+        <div className="relative h-[70vh] rounded-xl border border-border/50">
           {isLoading ? (
-            <div className="flex h-full items-center justify-center">
+            <div className="flex h-full items-center justify-center bg-card/50 rounded-xl">
               <div className="text-center space-y-4">
                 <Skeleton className="mx-auto h-16 w-16 rounded-full" />
                 <p className="text-muted-foreground">Loading graph data...</p>

@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState, useCallback, memo } from 'react'
 import * as d3 from 'd3'
-import { useGraphStore } from '@/stores/useGraphStore'
+import { useGraphStore, type GraphLayout } from '@/stores/useGraphStore'
 import { useResizeObserver } from '@/hooks/useResizeObserver'
 import { expandNode } from '@/hooks/useGraphData'
 import { GraphNodeElement } from '@/components/graph/GraphNode'
 import { GraphTooltip } from '@/components/graph/GraphTooltip'
 import type { GraphNode } from '@/types/graph.types'
 import type { SimulationNodeDatum } from 'd3'
+import { ZoomIn, ZoomOut, Home, Maximize, Network, GitBranch, Circle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
 type SimNode = GraphNode & SimulationNodeDatum
 
@@ -19,42 +22,45 @@ export function GraphCanvas() {
   const simulationRef = useRef<d3.Simulation<SimNode, never> | null>(null)
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null)
   const transformRef = useRef(d3.zoomIdentity)
+  const graphContainerRef = useRef<HTMLDivElement>(null)
 
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [loading, setLoading] = useState<string | null>(null)
   const [, forceRender] = useState(0)
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const tooltipHoveredRef = useRef(false)
 
   const nodes = useGraphStore((s) => s.nodes) as SimNode[]
   const edges = useGraphStore((s) => s.edges)
   const expandedNodes = useGraphStore((s) => s.expandedNodes)
+  const layout = useGraphStore((s) => s.layout)
+  const setLayout = useGraphStore((s) => s.setLayout)
   const addNodes = useGraphStore((s) => s.addNodes)
   const removeChildNodes = useGraphStore((s) => s.removeChildNodes)
   const toggleExpand = useGraphStore((s) => s.toggleExpand)
 
-  // D3 tick handler — updates DOM directly via refs (no React re-render)
+  // D3 tick — direct DOM updates, no React re-render
   const tickHandler = useCallback(() => {
     if (!linksRef.current || !nodesRef.current) return
 
-    // Update link positions
-    const links = linksRef.current.querySelectorAll('line')
     const storeEdges = useGraphStore.getState().edges
     const storeNodes = useGraphStore.getState().nodes as SimNode[]
     const nodeMap = new Map(storeNodes.map((n) => [n.id, n]))
 
+    const links = linksRef.current.querySelectorAll('line')
     links.forEach((line, i) => {
       const edge = storeEdges[i]
       if (!edge) return
-      const source = nodeMap.get(edge.source)
-      const target = nodeMap.get(edge.target)
-      if (!source || !target) return
-      line.setAttribute('x1', String(source.x || 0))
-      line.setAttribute('y1', String(source.y || 0))
-      line.setAttribute('x2', String(target.x || 0))
-      line.setAttribute('y2', String(target.y || 0))
+      const s = nodeMap.get(edge.source)
+      const t = nodeMap.get(edge.target)
+      if (!s || !t) return
+      line.setAttribute('x1', String(s.x || 0))
+      line.setAttribute('y1', String(s.y || 0))
+      line.setAttribute('x2', String(t.x || 0))
+      line.setAttribute('y2', String(t.y || 0))
     })
 
-    // Update node positions
     const nodeGroups = nodesRef.current.querySelectorAll<SVGGElement>('[data-node-id]')
     nodeGroups.forEach((g) => {
       const id = g.getAttribute('data-node-id')
@@ -65,7 +71,7 @@ export function GraphCanvas() {
     })
   }, [])
 
-  // Setup zoom — once
+  // Zoom setup
   useEffect(() => {
     if (!svgRef.current || !gRef.current || size.width === 0) return
 
@@ -82,47 +88,167 @@ export function GraphCanvas() {
     d3.select(svgRef.current).call(zoom)
     zoomRef.current = zoom
 
-    return () => {
-      d3.select(svgRef.current!).on('.zoom', null)
-    }
+    return () => { d3.select(svgRef.current!).on('.zoom', null) }
   }, [size.width, size.height])
 
-  // Setup simulation — rebuilds when nodes/edges change
+  // Build and apply layout
   useEffect(() => {
     if (nodes.length === 0 || size.width === 0) return
 
-    // Build link data for D3
     const nodeMap = new Map(nodes.map((n) => [n.id, n]))
     const linkData = edges
-      .map((e) => ({
-        source: nodeMap.get(e.source),
-        target: nodeMap.get(e.target),
-      }))
+      .map((e) => ({ source: nodeMap.get(e.source), target: nodeMap.get(e.target) }))
       .filter((l): l is { source: SimNode; target: SimNode } => !!l.source && !!l.target)
 
-    const sim = d3.forceSimulation<SimNode>(nodes)
-      .force('link', d3.forceLink(linkData).distance(140).strength(0.4))
-      .force('charge', d3.forceManyBody().strength(-350).distanceMax(500))
-      .force('center', d3.forceCenter(size.width / 2, size.height / 2).strength(0.05))
-      .force('collision', d3.forceCollide<SimNode>().radius((d) => d.type === 'movie' ? 55 : 40))
-      .alphaDecay(0.03)
-      .velocityDecay(0.4)
-      .on('tick', tickHandler)
+    // Stop previous simulation
+    simulationRef.current?.stop()
 
-    simulationRef.current = sim
+    const cx = size.width / 2
+    const cy = size.height / 2
 
-    return () => { sim.stop() }
+    if (layout === 'radial') {
+      // Radial layout: root at center, others in concentric rings
+      const rootNode = nodes.find((n) => n.expanded) || nodes[0]
+      const connected = new Map<string, number>() // nodeId -> depth
+      connected.set(rootNode.id, 0)
+
+      // BFS to assign depths
+      const queue = [rootNode.id]
+      while (queue.length > 0) {
+        const current = queue.shift()!
+        const depth = connected.get(current)!
+        edges.forEach((e) => {
+          const neighbor = e.source === current ? e.target : e.target === current ? e.source : null
+          if (neighbor && !connected.has(neighbor)) {
+            connected.set(neighbor, depth + 1)
+            queue.push(neighbor)
+          }
+        })
+      }
+
+      // Position nodes in concentric circles
+      const depthGroups = new Map<number, string[]>()
+      connected.forEach((depth, id) => {
+        if (!depthGroups.has(depth)) depthGroups.set(depth, [])
+        depthGroups.get(depth)!.push(id)
+      })
+
+      depthGroups.forEach((ids, depth) => {
+        const radius = depth * 160
+        ids.forEach((id, i) => {
+          const node = nodeMap.get(id)
+          if (!node) return
+          if (depth === 0) {
+            node.x = cx
+            node.y = cy
+          } else {
+            const angle = (2 * Math.PI * i) / ids.length - Math.PI / 2
+            node.x = cx + radius * Math.cos(angle)
+            node.y = cy + radius * Math.sin(angle)
+          }
+          node.fx = node.x
+          node.fy = node.y
+        })
+      })
+
+      // Light simulation just for collision
+      const sim = d3.forceSimulation<SimNode>(nodes)
+        .force('collision', d3.forceCollide<SimNode>().radius((d) => d.type === 'movie' ? 55 : 40))
+        .alphaDecay(0.1)
+        .on('tick', tickHandler)
+
+      simulationRef.current = sim
+      // Release fixed positions after settling
+      setTimeout(() => {
+        nodes.forEach((n) => { n.fx = null; n.fy = null })
+      }, 500)
+
+    } else if (layout === 'hierarchy') {
+      // Tree/hierarchy layout: root at top, children below
+      const rootNode = nodes.find((n) => n.expanded) || nodes[0]
+
+      // Build adjacency for BFS
+      const adj = new Map<string, string[]>()
+      nodes.forEach((n) => adj.set(n.id, []))
+      edges.forEach((e) => {
+        adj.get(e.source)?.push(e.target)
+        adj.get(e.target)?.push(e.source)
+      })
+
+      // BFS tree
+      const visited = new Set<string>()
+      const levels: string[][] = []
+      visited.add(rootNode.id)
+      let currentLevel = [rootNode.id]
+
+      while (currentLevel.length > 0) {
+        levels.push(currentLevel)
+        const nextLevel: string[] = []
+        currentLevel.forEach((id) => {
+          (adj.get(id) || []).forEach((neighbor) => {
+            if (!visited.has(neighbor)) {
+              visited.add(neighbor)
+              nextLevel.push(neighbor)
+            }
+          })
+        })
+        currentLevel = nextLevel
+      }
+
+      // Position: each level is a row
+      const levelHeight = 150
+      const startY = cy - ((levels.length - 1) * levelHeight) / 2
+
+      levels.forEach((ids, depth) => {
+        const levelWidth = Math.min(size.width - 100, ids.length * 120)
+        const startX = cx - levelWidth / 2
+        const spacing = ids.length > 1 ? levelWidth / (ids.length - 1) : 0
+
+        ids.forEach((id, i) => {
+          const node = nodeMap.get(id)
+          if (!node) return
+          node.x = ids.length === 1 ? cx : startX + spacing * i
+          node.y = startY + depth * levelHeight
+          node.fx = node.x
+          node.fy = node.y
+        })
+      })
+
+      const sim = d3.forceSimulation<SimNode>(nodes)
+        .force('collision', d3.forceCollide<SimNode>().radius((d) => d.type === 'movie' ? 55 : 40))
+        .alphaDecay(0.1)
+        .on('tick', tickHandler)
+
+      simulationRef.current = sim
+      setTimeout(() => {
+        nodes.forEach((n) => { n.fx = null; n.fy = null })
+      }, 800)
+
+    } else {
+      // Default: force-directed
+      const sim = d3.forceSimulation<SimNode>(nodes)
+        .force('link', d3.forceLink(linkData).distance(140).strength(0.4))
+        .force('charge', d3.forceManyBody().strength(-350).distanceMax(500))
+        .force('center', d3.forceCenter(cx, cy).strength(0.05))
+        .force('collision', d3.forceCollide<SimNode>().radius((d) => d.type === 'movie' ? 55 : 40))
+        .alphaDecay(0.03)
+        .velocityDecay(0.4)
+        .on('tick', tickHandler)
+
+      simulationRef.current = sim
+    }
+
+    return () => { simulationRef.current?.stop() }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes.length, edges.length, size.width, size.height, tickHandler])
+  }, [nodes.length, edges.length, size.width, size.height, layout, tickHandler])
 
-  // Setup drag on node elements
+  // D3 drag on nodes
   useEffect(() => {
     if (!nodesRef.current || !simulationRef.current) return
     const sim = simulationRef.current
-
-    const nodeGroups = nodesRef.current.querySelectorAll<SVGGElement>('[data-node-id]')
     const nodeMap = new Map(nodes.map((n) => [n.id, n]))
 
+    const nodeGroups = nodesRef.current.querySelectorAll<SVGGElement>('[data-node-id]')
     nodeGroups.forEach((g) => {
       const id = g.getAttribute('data-node-id')
       if (!id) return
@@ -149,7 +275,7 @@ export function GraphCanvas() {
     })
   }, [nodes, nodes.length])
 
-  // Expand/collapse on double-click, navigate tooltip handles single click info
+  // Expand/collapse
   const handleNodeClick = useCallback(async (node: SimNode) => {
     if (expandedNodes.has(node.id)) {
       removeChildNodes(node.id)
@@ -157,7 +283,6 @@ export function GraphCanvas() {
       forceRender((n) => n + 1)
       return
     }
-
     setLoading(node.id)
     try {
       const { nodes: newNodes, edges: newEdges } = await expandNode(node)
@@ -169,19 +294,45 @@ export function GraphCanvas() {
     }
   }, [expandedNodes, addNodes, removeChildNodes, toggleExpand])
 
-  // Compute tooltip position relative to container
-  const handleNodeHover = useCallback((node: GraphNode | null, svgEvent?: React.MouseEvent) => {
+  // Tooltip with delayed hide so user can reach the tooltip to click links
+  const showTooltip = useCallback((node: GraphNode, _e?: React.MouseEvent) => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current)
+      hideTimeoutRef.current = null
+    }
     setHoveredNode(node)
-    if (node && svgRef.current && svgEvent) {
+    if (svgRef.current) {
       const rect = svgRef.current.getBoundingClientRect()
       const t = transformRef.current
-      const screenX = (node.x || 0) * t.k + t.x + rect.left
-      const screenY = (node.y || 0) * t.k + t.y + rect.top
-      setTooltipPos({ x: screenX, y: screenY })
+      setTooltipPos({
+        x: (node.x || 0) * t.k + t.x + rect.left,
+        y: (node.y || 0) * t.k + t.y + rect.top,
+      })
     }
   }, [])
 
-  // Zoom controls (called from GraphControls)
+  const scheduleHideTooltip = useCallback(() => {
+    hideTimeoutRef.current = setTimeout(() => {
+      if (!tooltipHoveredRef.current) {
+        setHoveredNode(null)
+      }
+    }, 300)
+  }, [])
+
+  const handleTooltipEnter = useCallback(() => {
+    tooltipHoveredRef.current = true
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current)
+      hideTimeoutRef.current = null
+    }
+  }, [])
+
+  const handleTooltipLeave = useCallback(() => {
+    tooltipHoveredRef.current = false
+    setHoveredNode(null)
+  }, [])
+
+  // Zoom controls
   const handleZoomIn = useCallback(() => {
     if (!svgRef.current || !zoomRef.current) return
     d3.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 1.4)
@@ -192,20 +343,32 @@ export function GraphCanvas() {
     d3.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 0.7)
   }, [])
 
-  const handleZoomReset = useCallback(() => {
+  const handleHome = useCallback(() => {
     if (!svgRef.current || !zoomRef.current) return
     d3.select(svgRef.current).transition().duration(500).call(
-      zoomRef.current.transform,
-      d3.zoomIdentity.translate(size.width / 2, size.height / 2).scale(0.8).translate(-size.width / 2, -size.height / 2)
+      zoomRef.current.transform, d3.zoomIdentity
     )
-  }, [size.width, size.height])
+  }, [])
+
+  const handleFullscreen = useCallback(() => {
+    const el = graphContainerRef.current
+    if (!el) return
+    if (document.fullscreenElement) {
+      document.exitFullscreen()
+    } else {
+      el.requestFullscreen()
+    }
+  }, [])
 
   if (size.width === 0) {
     return <div ref={containerRef} className="h-full w-full" />
   }
 
   return (
-    <div ref={containerRef} className="relative h-full w-full">
+    <div ref={(el) => {
+      (containerRef as React.RefObject<HTMLDivElement | null>).current = el
+      graphContainerRef.current = el
+    }} className="relative h-full w-full bg-background rounded-xl">
       <svg
         ref={svgRef}
         width={size.width}
@@ -213,7 +376,6 @@ export function GraphCanvas() {
         className="cursor-grab active:cursor-grabbing"
       >
         <g ref={gRef}>
-          {/* Edges */}
           <g ref={linksRef}>
             {edges.map((edge, i) => (
               <line
@@ -224,8 +386,6 @@ export function GraphCanvas() {
               />
             ))}
           </g>
-
-          {/* Nodes */}
           <g ref={nodesRef}>
             {nodes.map((node) => (
               <MemoizedGraphNode
@@ -234,8 +394,8 @@ export function GraphCanvas() {
                 isExpanded={expandedNodes.has(node.id)}
                 isLoading={loading === node.id}
                 onClick={() => handleNodeClick(node as SimNode)}
-                onMouseEnter={(e) => handleNodeHover(node, e)}
-                onMouseLeave={() => handleNodeHover(null)}
+                onMouseEnter={(e) => showTooltip(node, e)}
+                onMouseLeave={scheduleHideTooltip}
               />
             ))}
           </g>
@@ -243,42 +403,60 @@ export function GraphCanvas() {
       </svg>
 
       {hoveredNode && (
-        <GraphTooltip node={hoveredNode} x={tooltipPos.x} y={tooltipPos.y} containerRef={svgRef} />
+        <GraphTooltip
+          node={hoveredNode}
+          x={tooltipPos.x}
+          y={tooltipPos.y}
+          containerRef={svgRef}
+          onMouseEnter={handleTooltipEnter}
+          onMouseLeave={handleTooltipLeave}
+        />
       )}
 
-      {/* Zoom controls overlay */}
-      <ZoomControls onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} onReset={handleZoomReset} />
+      {/* Controls overlay — top left */}
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+        {/* Zoom + view */}
+        <div className="flex flex-col gap-1 rounded-xl border border-border/50 bg-card/90 p-1.5 shadow-lg backdrop-blur-md">
+          <Button variant="ghost" size="icon-sm" onClick={handleZoomIn} aria-label="Zoom in">
+            <ZoomIn size={16} />
+          </Button>
+          <Button variant="ghost" size="icon-sm" onClick={handleZoomOut} aria-label="Zoom out">
+            <ZoomOut size={16} />
+          </Button>
+          <Button variant="ghost" size="icon-sm" onClick={handleHome} aria-label="Reset view">
+            <Home size={16} />
+          </Button>
+          <Button variant="ghost" size="icon-sm" onClick={handleFullscreen} aria-label="Fullscreen">
+            <Maximize size={16} />
+          </Button>
+        </div>
+
+        {/* Layout picker */}
+        <div className="rounded-xl border border-border/50 bg-card/90 p-2 shadow-lg backdrop-blur-md">
+          <p className="text-[10px] font-medium text-muted-foreground mb-1.5 px-0.5">Layout</p>
+          <ToggleGroup
+            value={[layout]}
+            onValueChange={(v) => { if (v.length > 0) setLayout(v[0] as GraphLayout) }}
+            className="flex-col gap-1"
+          >
+            <ToggleGroupItem value="force" className="w-full justify-start gap-2 px-2 py-1 text-xs data-[pressed]:bg-primary data-[pressed]:text-primary-foreground">
+              <Network size={12} /> Force
+            </ToggleGroupItem>
+            <ToggleGroupItem value="radial" className="w-full justify-start gap-2 px-2 py-1 text-xs data-[pressed]:bg-primary data-[pressed]:text-primary-foreground">
+              <Circle size={12} /> Radial
+            </ToggleGroupItem>
+            <ToggleGroupItem value="hierarchy" className="w-full justify-start gap-2 px-2 py-1 text-xs data-[pressed]:bg-primary data-[pressed]:text-primary-foreground">
+              <GitBranch size={12} /> Hierarchy
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+      </div>
     </div>
   )
 }
 
-// Memoized node to prevent re-rendering unchanged nodes
 const MemoizedGraphNode = memo(GraphNodeElement, (prev, next) =>
   prev.node.id === next.node.id &&
   prev.isExpanded === next.isExpanded &&
   prev.isLoading === next.isLoading
 )
-
-// Inline zoom controls
-import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-
-function ZoomControls({ onZoomIn, onZoomOut, onReset }: {
-  onZoomIn: () => void
-  onZoomOut: () => void
-  onReset: () => void
-}) {
-  return (
-    <div className="absolute top-4 left-4 z-10 flex flex-col gap-1 rounded-xl border border-border/50 bg-card/90 p-1.5 shadow-lg backdrop-blur-md">
-      <Button variant="ghost" size="icon-sm" onClick={onZoomIn} aria-label="Zoom in">
-        <ZoomIn size={16} />
-      </Button>
-      <Button variant="ghost" size="icon-sm" onClick={onZoomOut} aria-label="Zoom out">
-        <ZoomOut size={16} />
-      </Button>
-      <Button variant="ghost" size="icon-sm" onClick={onReset} aria-label="Fit to view">
-        <Maximize2 size={16} />
-      </Button>
-    </div>
-  )
-}
