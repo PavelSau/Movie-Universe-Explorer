@@ -1,5 +1,9 @@
 import { create } from 'zustand'
+import { QueryClient } from '@tanstack/react-query'
 import { api } from '@/services/api'
+
+let queryClientRef: QueryClient | null = null
+export function setQueryClientRef(qc: QueryClient) { queryClientRef = qc }
 
 interface User {
   id: number
@@ -28,7 +32,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { data } = await api.post('/auth/login', { username, password })
       localStorage.setItem('auth_token', data.token)
-      api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`
+      queryClientRef?.removeQueries({ queryKey: ['wishlist'] })
       set({ user: data.user, token: data.token, isLoading: false })
     } catch (err) {
       set({ isLoading: false })
@@ -41,7 +45,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { data } = await api.post('/auth/register', { username, password, displayName })
       localStorage.setItem('auth_token', data.token)
-      api.defaults.headers.common['Authorization'] = `Bearer ${data.token}`
+      queryClientRef?.removeQueries({ queryKey: ['wishlist'] })
       set({ user: data.user, token: data.token, isLoading: false })
     } catch (err) {
       set({ isLoading: false })
@@ -51,7 +55,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: () => {
     localStorage.removeItem('auth_token')
-    delete api.defaults.headers.common['Authorization']
+    queryClientRef?.removeQueries({ queryKey: ['wishlist'] })
     set({ user: null, token: null })
   },
 
@@ -59,13 +63,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     const token = localStorage.getItem('auth_token')
     if (!token) return
 
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`
     try {
       const { data } = await api.get('/auth/me')
       set({ user: data, token })
     } catch {
       localStorage.removeItem('auth_token')
-      delete api.defaults.headers.common['Authorization']
       set({ user: null, token: null })
     }
   },

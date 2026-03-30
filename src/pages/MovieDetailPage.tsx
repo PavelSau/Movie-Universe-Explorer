@@ -4,6 +4,7 @@ import { GraphView } from '@/components/graph/GraphView'
 import { WatchProviders } from '@/components/movie/WatchProviders'
 import { SimilarOrbit } from '@/components/movie/SimilarOrbit'
 import { MovieTrailer } from '@/components/movie/MovieTrailer'
+import { WishlistButton } from '@/components/shared/WishlistButton'
 import { useMovieDetails, useMovieCredits } from '@/hooks/useMovieDetails'
 import { Poster } from '@/components/shared/Poster'
 import { Badge } from '@/components/ui/badge'
@@ -99,6 +100,7 @@ export function MovieDetailPage() {
                 </Badge>
               )}
               <MovieTrailer movieId={movie.id} movieTitle={movie.title} />
+              <WishlistButton entityType="movie" entityId={movie.id} title={movie.title} posterPath={movie.posterPath} />
             </div>
 
             {/* Genres */}

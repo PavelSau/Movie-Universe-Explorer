@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Film, Grid3X3, LogIn, LogOut, User } from 'lucide-react'
+import { Film, Grid3X3, Heart, LogIn, LogOut, User } from 'lucide-react'
 import { ThemeToggle } from '@/components/layout/ThemeToggle'
 import { AuthDialog } from '@/components/auth/AuthDialog'
 import { Button } from '@/components/ui/button'
@@ -30,6 +30,13 @@ export function Header() {
             >
               <Grid3X3 size={15} />
               Heatmap
+            </Link>
+            <Link
+              to="/wishlist"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground"
+            >
+              <Heart size={15} />
+              My Lists
             </Link>
           </nav>
         </div>

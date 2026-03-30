@@ -4,6 +4,7 @@ import { ArrowLeft, Star, MapPin, Cake, Briefcase, ChevronDown, ChevronUp } from
 import { GraphView } from '@/components/graph/GraphView'
 import { TimelineView } from '@/components/timeline/TimelineView'
 import { GenreRadar } from '@/components/person/GenreRadar'
+import { WishlistButton } from '@/components/shared/WishlistButton'
 import { usePersonDetails, usePersonCredits } from '@/hooks/usePersonDetails'
 import { Poster } from '@/components/shared/Poster'
 import { Badge } from '@/components/ui/badge'
@@ -89,6 +90,7 @@ export function PersonDetailPage() {
                     <MapPin size={14} /> {person.placeOfBirth}
                   </Badge>
                 )}
+                <WishlistButton entityType="person" entityId={person.id} title={person.name} posterPath={person.profilePath} />
               </div>
 
               {/* Biography */}
