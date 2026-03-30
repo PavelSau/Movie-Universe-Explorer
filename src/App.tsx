@@ -1,10 +1,18 @@
+import { Suspense, lazy } from 'react'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useTheme } from '@/hooks/useTheme'
 import { Header } from '@/components/layout/Header'
-import { SearchBar } from '@/components/search/SearchBar'
-import { TrendingDashboard } from '@/components/trending/TrendingDashboard'
-import { Sparkles } from 'lucide-react'
+import { HomePage } from '@/pages/HomePage'
+import { Skeleton } from '@/components/ui/skeleton'
+
+const MovieDetailPage = lazy(() =>
+  import('@/pages/MovieDetailPage').then((m) => ({ default: m.MovieDetailPage }))
+)
+const PersonDetailPage = lazy(() =>
+  import('@/pages/PersonDetailPage').then((m) => ({ default: m.PersonDetailPage }))
+)
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,48 +23,39 @@ const queryClient = new QueryClient({
   },
 })
 
+function PageSkeleton() {
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+      <Skeleton className="h-[40vh] w-full rounded-xl" />
+      <div className="mt-8 space-y-4">
+        <Skeleton className="h-10 w-1/2" />
+        <Skeleton className="h-6 w-1/3" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    </div>
+  )
+}
+
 function AppContent() {
   useTheme()
 
   return (
-    <div className="min-h-screen">
-      <Header />
-
-      {/* Hero section with gradient background */}
-      <div className="relative">
-        {/* Gradient mesh background — pointer-events-none so it doesn't block clicks */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-hero-from via-transparent to-hero-to" />
-        <div className="pointer-events-none absolute top-0 left-1/4 h-96 w-96 rounded-full bg-primary/5 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 right-1/4 h-96 w-96 rounded-full bg-accent/10 blur-3xl" />
-
-        <main className="relative mx-auto max-w-7xl px-4 pt-16 pb-12 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
-              <Sparkles size={14} />
-              Discover connections in cinema
-            </div>
-            <h2 className="text-4xl font-bold tracking-tight text-foreground sm:text-6xl">
-              Explore the Movie
-              <span className="block bg-gradient-to-r from-primary to-accent-foreground bg-clip-text text-transparent">
-                Universe
-              </span>
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-              Search any film or actor and discover connections, timelines, and trends across the world of cinema
-            </p>
-          </div>
-
-          <div className="mt-10">
-            <SearchBar />
-          </div>
-        </main>
+    <BrowserRouter>
+      <div className="min-h-screen">
+        <Header />
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route
+            path="/movie/:id"
+            element={<Suspense fallback={<PageSkeleton />}><MovieDetailPage /></Suspense>}
+          />
+          <Route
+            path="/person/:id"
+            element={<Suspense fallback={<PageSkeleton />}><PersonDetailPage /></Suspense>}
+          />
+        </Routes>
       </div>
-
-      {/* Trending section */}
-      <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
-        <TrendingDashboard />
-      </div>
-    </div>
+    </BrowserRouter>
   )
 }
 

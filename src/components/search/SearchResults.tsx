@@ -1,7 +1,7 @@
+import { Link } from 'react-router-dom'
 import { Film, User } from 'lucide-react'
 import { Poster } from '@/components/shared/Poster'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { SearchResult } from '@/types/movie.types'
 
@@ -39,11 +39,11 @@ export function SearchResults({ results, isLoading, onClose }: SearchResultsProp
   return (
     <div className="absolute top-full left-0 right-0 z-50 mt-2 max-h-[60vh] overflow-y-auto rounded-xl border border-border/50 bg-popover/95 p-2 shadow-xl backdrop-blur-xl">
       {results.map((result) => (
-        <Button
+        <Link
           key={`${result.mediaType}-${result.id}`}
-          variant="ghost"
+          to={result.mediaType === 'movie' ? `/movie/${result.id}` : `/person/${result.id}`}
           onClick={onClose}
-          className="flex h-auto w-full items-center justify-start gap-3 rounded-lg p-2 text-left"
+          className="flex cursor-pointer items-center gap-3 rounded-lg p-2 text-left transition-colors duration-150 hover:bg-accent"
         >
           <Poster
             path={result.posterPath}
@@ -76,7 +76,7 @@ export function SearchResults({ results, isLoading, onClose }: SearchResultsProp
               )}
             </div>
           </div>
-        </Button>
+        </Link>
       ))}
     </div>
   )
