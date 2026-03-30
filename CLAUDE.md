@@ -218,5 +218,6 @@ This app targets a premium, modern UI — as if designed by a senior UI designer
 - Hardcode colors (`bg-black`, `text-white`, `bg-gray-*`, `text-gray-*`, etc.) — ALWAYS use CSS variable tokens (`bg-background`, `text-foreground`, `bg-primary`, etc.)
 - Override focus/cursor/disabled styles from shadcn components in feature components — these are defined once in `src/components/ui/` and must not be duplicated
 - Use `overflow-hidden` on layout containers — it clips absolutely positioned children (dropdowns, tooltips, popovers). Only use `overflow-hidden` on image wrappers where content must be clipped (e.g., poster zoom on hover). For decorative elements that should not bleed, use `pointer-events-none` instead
+- Use fixed height values (`max-h-96`, `h-64`) for scrollable containers — always use viewport-relative units (`max-h-[60vh]`) so content adapts to any screen size. All UI must be adaptive and responsive
 - Create barrel files (index.ts re-exports) — import directly from source
 - Add comments that restate what the code does — only comment *why* when non-obvious

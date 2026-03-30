@@ -3,7 +3,6 @@ import { Poster } from '@/components/shared/Poster'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import type { SearchResult } from '@/types/movie.types'
 
 interface SearchResultsProps {
@@ -15,7 +14,7 @@ interface SearchResultsProps {
 export function SearchResults({ results, isLoading, onClose }: SearchResultsProps) {
   if (isLoading) {
     return (
-      <div className="absolute top-full left-0 right-0 z-50 mt-2 rounded-xl border border-border/50 bg-popover/95 p-2 shadow-xl backdrop-blur-xl">
+      <div className="absolute top-full left-0 right-0 z-50 mt-2 max-h-[60vh] rounded-xl border border-border/50 bg-popover/95 p-2 shadow-xl backdrop-blur-xl">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 p-2">
             <Skeleton className="h-14 w-10 shrink-0 rounded-lg" />
@@ -38,49 +37,47 @@ export function SearchResults({ results, isLoading, onClose }: SearchResultsProp
   }
 
   return (
-    <div className="absolute top-full left-0 right-0 z-50 mt-2 rounded-xl border border-border/50 bg-popover/95 shadow-xl backdrop-blur-xl">
-      <ScrollArea className="max-h-96 p-2">
-        {results.map((result) => (
-          <Button
-            key={`${result.mediaType}-${result.id}`}
-            variant="ghost"
-            onClick={onClose}
-            className="flex h-auto w-full items-center justify-start gap-3 rounded-lg p-2 text-left"
-          >
-            <Poster
-              path={result.posterPath}
-              alt={result.title}
-              size="thumbnail"
-              type={result.mediaType}
-              className="h-14 w-10 shrink-0 rounded-lg"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium text-foreground">
-                {result.title}
-              </p>
-              <div className="mt-1 flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">
-                  {result.mediaType === 'movie' ? (
-                    <><Film size={12} /> Movie</>
-                  ) : (
-                    <><User size={12} /> {result.knownForDepartment || 'Person'}</>
-                  )}
-                </Badge>
-                {result.releaseDate && (
-                  <span className="text-xs text-muted-foreground">
-                    {result.releaseDate.slice(0, 4)}
-                  </span>
+    <div className="absolute top-full left-0 right-0 z-50 mt-2 max-h-[60vh] overflow-y-auto rounded-xl border border-border/50 bg-popover/95 p-2 shadow-xl backdrop-blur-xl">
+      {results.map((result) => (
+        <Button
+          key={`${result.mediaType}-${result.id}`}
+          variant="ghost"
+          onClick={onClose}
+          className="flex h-auto w-full items-center justify-start gap-3 rounded-lg p-2 text-left"
+        >
+          <Poster
+            path={result.posterPath}
+            alt={result.title}
+            size="thumbnail"
+            type={result.mediaType}
+            className="h-14 w-10 shrink-0 rounded-lg"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium text-foreground">
+              {result.title}
+            </p>
+            <div className="mt-1 flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                {result.mediaType === 'movie' ? (
+                  <><Film size={12} /> Movie</>
+                ) : (
+                  <><User size={12} /> {result.knownForDepartment || 'Person'}</>
                 )}
-                {result.voteAverage != null && result.voteAverage > 0 && (
-                  <span className="text-xs text-primary font-medium">
-                    ★ {result.voteAverage.toFixed(1)}
-                  </span>
-                )}
-              </div>
+              </Badge>
+              {result.releaseDate && (
+                <span className="text-xs text-muted-foreground">
+                  {result.releaseDate.slice(0, 4)}
+                </span>
+              )}
+              {result.voteAverage != null && result.voteAverage > 0 && (
+                <span className="text-xs text-primary font-medium">
+                  ★ {result.voteAverage.toFixed(1)}
+                </span>
+              )}
             </div>
-          </Button>
-        ))}
-      </ScrollArea>
+          </div>
+        </Button>
+      ))}
     </div>
   )
 }
