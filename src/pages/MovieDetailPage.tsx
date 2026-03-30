@@ -2,6 +2,8 @@ import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Star, Clock, Calendar, DollarSign, Users } from 'lucide-react'
 import { GraphView } from '@/components/graph/GraphView'
 import { WatchProviders } from '@/components/movie/WatchProviders'
+import { SimilarOrbit } from '@/components/movie/SimilarOrbit'
+import { MovieTrailer } from '@/components/movie/MovieTrailer'
 import { useMovieDetails, useMovieCredits } from '@/hooks/useMovieDetails'
 import { Poster } from '@/components/shared/Poster'
 import { Badge } from '@/components/ui/badge'
@@ -96,6 +98,7 @@ export function MovieDetailPage() {
                   <Calendar size={14} /> {movie.releaseDate.slice(0, 4)}
                 </Badge>
               )}
+              <MovieTrailer movieId={movie.id} movieTitle={movie.title} />
             </div>
 
             {/* Genres */}
@@ -214,6 +217,13 @@ export function MovieDetailPage() {
 
         {/* Where to Watch */}
         <WatchProviders movieId={movie.id} />
+
+        {/* Similar Movies Orbit */}
+        <SimilarOrbit
+          movieId={movie.id}
+          movieTitle={movie.title}
+          moviePosterPath={movie.posterPath}
+        />
 
         {/* Connection Graph */}
         <GraphView

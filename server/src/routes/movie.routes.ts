@@ -76,4 +76,68 @@ router.get('/:id/credits', cacheMiddleware(3600), async (req, res, next) => {
   }
 })
 
+router.get('/:id/videos', cacheMiddleware(3600), async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const response = await tmdbClient.get(`/movie/${id}/videos`)
+
+    const videos = (response.data.results || [])
+      .filter(
+        (v: Record<string, unknown>) =>
+          (v.type === 'Trailer' || v.type === 'Teaser') && v.site === 'YouTube'
+      )
+      .map((v: Record<string, unknown>) => ({
+        id: v.id,
+        key: v.key,
+        name: v.name,
+        type: v.type,
+        site: v.site,
+      }))
+
+    res.json({ videos })
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.get('/:id/similar', cacheMiddleware(3600), async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const response = await tmdbClient.get(`/movie/${id}/similar`)
+    const results = (response.data.results || [])
+      .slice(0, 10)
+      .map((m: Record<string, unknown>) => ({
+        id: m.id,
+        title: m.title,
+        posterPath: m.poster_path || null,
+        voteAverage: m.vote_average,
+        releaseDate: m.release_date || null,
+      }))
+
+    res.json({ results })
+  } catch (err) {
+    next(err)
+  }
+})
+
+router.get('/:id/recommendations', cacheMiddleware(3600), async (req, res, next) => {
+  try {
+    const { id } = req.params
+    const response = await tmdbClient.get(`/movie/${id}/recommendations`)
+    const results = (response.data.results || [])
+      .slice(0, 10)
+      .map((m: Record<string, unknown>) => ({
+        id: m.id,
+        title: m.title,
+        posterPath: m.poster_path || null,
+        voteAverage: m.vote_average,
+        releaseDate: m.release_date || null,
+      }))
+
+    res.json({ results })
+  } catch (err) {
+    next(err)
+  }
+})
+
 export { router as movieRoutes }
