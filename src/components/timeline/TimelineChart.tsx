@@ -1,161 +1,105 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
-import * as d3 from 'd3'
-import { useNavigate } from 'react-router-dom'
-import { useResizeObserver } from '@/hooks/useResizeObserver'
+import { useMemo, useCallback, useState, useRef } from 'react'
+import { Link } from 'react-router-dom'
+import { ResponsiveScatterPlot } from '@nivo/scatterplot'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { TimelineTooltip } from '@/components/timeline/TimelineTooltip'
+import { POSTER_SIZES } from '@/utils/constants'
 import { TimelineLegend, CHART_COLORS } from '@/components/timeline/TimelineLegend'
+import { ZoomIn, ZoomOut, RotateCcw, ExternalLink } from 'lucide-react'
 import type { TimelineItem, Genre } from '@/types/timeline.types'
-import { cn } from '@/lib/utils'
 
 interface TimelineChartProps {
   items: TimelineItem[]
   genres: Genre[]
 }
 
-const MARGIN = { top: 20, right: 30, bottom: 50, left: 30 }
-
 export function TimelineChart({ items, genres }: TimelineChartProps) {
-  const [containerRef, size] = useResizeObserver()
-  const xAxisRef = useRef<SVGGElement>(null)
-  const brushRef = useRef<SVGGElement>(null)
-  const navigate = useNavigate()
-
-  const [hoveredItem, setHoveredItem] = useState<TimelineItem | null>(null)
-  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
-  const [brushExtent, setBrushExtent] = useState<[Date, Date] | null>(null)
-  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const tooltipHoveredRef = useRef(false)
-  const svgRef = useRef<SVGSVGElement>(null)
-
   const genreMap = useMemo(
     () => new Map(genres.map((g) => [g.id, g])),
     [genres],
   )
 
-  const genreColorMap = useMemo(() => {
-    const uniqueGenres = [...new Set(items.map((i) => i.primaryGenreId).filter(Boolean))] as number[]
-    const map = new Map<number, string>()
-    uniqueGenres.forEach((gId, idx) => {
-      map.set(gId, CHART_COLORS[idx % CHART_COLORS.length])
+  // Compute full year range from data
+  const fullRange = useMemo((): [number, number] => {
+    if (items.length === 0) return [2000, 2025]
+    const years = items.map((i) => i.year)
+    return [Math.min(...years) - 1, Math.max(...years) + 1]
+  }, [items])
+
+  const [yearRange, setYearRange] = useState<[number, number]>(fullRange)
+
+  const filteredItems = useMemo(
+    () => items.filter((i) => i.year >= yearRange[0] && i.year <= yearRange[1]),
+    [items, yearRange],
+  )
+
+  // Zoom controls
+  const zoomIn = useCallback(() => {
+    setYearRange(([from, to]) => {
+      const mid = Math.round((from + to) / 2)
+      const halfSpan = Math.max(2, Math.round((to - from) / 4))
+      return [mid - halfSpan, mid + halfSpan]
     })
-    return map
-  }, [items])
-
-  const getColor = useCallback(
-    (genreId: number | null) => {
-      if (genreId === null) return 'var(--muted-foreground)'
-      return genreColorMap.get(genreId) ?? 'var(--muted-foreground)'
-    },
-    [genreColorMap],
-  )
-
-  const innerWidth = size.width - MARGIN.left - MARGIN.right
-  const innerHeight = size.height - MARGIN.top - MARGIN.bottom
-
-  const fullDomain = useMemo((): [Date, Date] => {
-    if (items.length === 0) return [new Date(2000, 0, 1), new Date()]
-    const dates = items.map((i) => i.releaseDate)
-    const min = d3.min(dates) as Date
-    const max = d3.max(dates) as Date
-    const padding = (max.getTime() - min.getTime()) * 0.05 || 1000 * 60 * 60 * 24 * 365
-    return [new Date(min.getTime() - padding), new Date(max.getTime() + padding)]
-  }, [items])
-
-  const activeDomain = brushExtent ?? fullDomain
-
-  const xScale = useMemo(
-    () =>
-      d3
-        .scaleTime()
-        .domain(activeDomain)
-        .range([0, innerWidth]),
-    [activeDomain, innerWidth],
-  )
-
-  const radiusScale = useMemo(
-    () =>
-      d3
-        .scaleLinear()
-        .domain([0, 10])
-        .range([6, 18])
-        .clamp(true),
-    [],
-  )
-
-  // Render D3 axis
-  useEffect(() => {
-    if (!xAxisRef.current || innerWidth <= 0) return
-    const axis = d3.axisBottom(xScale).ticks(Math.max(2, Math.floor(innerWidth / 120)))
-    d3.select(xAxisRef.current).call(axis)
-    d3.select(xAxisRef.current)
-      .selectAll('text')
-      .style('fill', 'var(--muted-foreground)')
-      .style('font-size', '11px')
-    d3.select(xAxisRef.current)
-      .selectAll('line, path')
-      .style('stroke', 'var(--border)')
-  }, [xScale, innerWidth])
-
-  // D3 brush for zooming
-  useEffect(() => {
-    if (!brushRef.current || innerWidth <= 0 || innerHeight <= 0) return
-
-    const brush = d3
-      .brushX<unknown>()
-      .extent([
-        [0, 0],
-        [innerWidth, innerHeight],
-      ])
-      .on('end', (event: d3.D3BrushEvent<unknown>) => {
-        if (!event.selection) {
-          setBrushExtent(null)
-          return
-        }
-        const [x0, x1] = event.selection as [number, number]
-        const fullScale = d3.scaleTime().domain(fullDomain).range([0, innerWidth])
-        setBrushExtent([fullScale.invert(x0), fullScale.invert(x1)])
-        d3.select(brushRef.current!).call(brush.move, null)
-      })
-
-    const g = d3.select(brushRef.current)
-    g.call(brush)
-
-    g.selectAll('.selection')
-      .style('fill', 'var(--primary)')
-      .style('fill-opacity', '0.15')
-      .style('stroke', 'var(--primary)')
-
-    return () => {
-      g.on('.brush', null)
-    }
-  }, [innerWidth, innerHeight, fullDomain])
-
-  // Tooltip delayed hide
-  const scheduleHide = useCallback(() => {
-    hideTimeoutRef.current = setTimeout(() => {
-      if (!tooltipHoveredRef.current) {
-        setHoveredItem(null)
-      }
-    }, 300)
   }, [])
 
-  const handleCircleEnter = useCallback(
-    (item: TimelineItem, e: React.MouseEvent<SVGCircleElement>) => {
-      if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current)
-        hideTimeoutRef.current = null
-      }
-      setHoveredItem(item)
-      const rect = (e.target as SVGCircleElement).getBoundingClientRect()
-      setTooltipPos({ x: rect.x + rect.width / 2, y: rect.y })
-    },
-    [],
-  )
+  const zoomOut = useCallback(() => {
+    setYearRange(([from, to]) => {
+      const mid = Math.round((from + to) / 2)
+      const halfSpan = Math.round((to - from) / 2) + 5
+      return [Math.max(fullRange[0], mid - halfSpan), Math.min(fullRange[1], mid + halfSpan)]
+    })
+  }, [fullRange])
 
-  const handleCircleLeave = useCallback(() => {
-    scheduleHide()
-  }, [scheduleHide])
+  const resetZoom = useCallback(() => {
+    setYearRange(fullRange)
+  }, [fullRange])
+
+  // Shift left/right
+  const shiftLeft = useCallback(() => {
+    setYearRange(([from, to]) => {
+      const span = to - from
+      const shift = Math.max(1, Math.round(span / 4))
+      const newFrom = Math.max(fullRange[0], from - shift)
+      return [newFrom, newFrom + span]
+    })
+  }, [fullRange])
+
+  const shiftRight = useCallback(() => {
+    setYearRange(([from, to]) => {
+      const span = to - from
+      const shift = Math.max(1, Math.round(span / 4))
+      const newTo = Math.min(fullRange[1], to + shift)
+      return [newTo - span, newTo]
+    })
+  }, [fullRange])
+
+  const isZoomed = yearRange[0] !== fullRange[0] || yearRange[1] !== fullRange[1]
+
+  // Sticky tooltip state — same pattern as graph
+  const [stickyItem, setStickyItem] = useState<TimelineItem | null>(null)
+  const [stickyPos, setStickyPos] = useState({ x: 0, y: 0 })
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const tooltipHoveredRef = useRef(false)
+  const chartContainerRef = useRef<HTMLDivElement>(null)
+
+  const showStickyTooltip = useCallback((item: TimelineItem, screenX: number, screenY: number) => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current)
+      hideTimeoutRef.current = null
+    }
+    setStickyItem(item)
+    const rect = chartContainerRef.current?.getBoundingClientRect()
+    setStickyPos({
+      x: screenX - (rect?.left || 0),
+      y: screenY - (rect?.top || 0),
+    })
+  }, [])
+
+  const scheduleHideTooltip = useCallback(() => {
+    hideTimeoutRef.current = setTimeout(() => {
+      if (!tooltipHoveredRef.current) setStickyItem(null)
+    }, 400)
+  }, [])
 
   const handleTooltipEnter = useCallback(() => {
     tooltipHoveredRef.current = true
@@ -167,135 +111,198 @@ export function TimelineChart({ items, genres }: TimelineChartProps) {
 
   const handleTooltipLeave = useCallback(() => {
     tooltipHoveredRef.current = false
-    setHoveredItem(null)
+    setStickyItem(null)
   }, [])
 
-  const handleCircleClick = useCallback(
-    (item: TimelineItem) => {
-      if (item.mediaType === 'movie') {
-        navigate(`/movie/${item.id}`)
-      }
-    },
-    [navigate],
-  )
+  const genreColorMap = useMemo(() => {
+    const uniqueGenres = [...new Set(items.map((i) => i.primaryGenreId).filter(Boolean))] as number[]
+    const map = new Map<number, string>()
+    uniqueGenres.forEach((gId, idx) => {
+      map.set(gId, CHART_COLORS[idx % CHART_COLORS.length])
+    })
+    return map
+  }, [items])
 
-  const handleResetZoom = useCallback(() => {
-    setBrushExtent(null)
-  }, [])
+  // Group items by genre for nivo series
+  const nivoData = useMemo(() => {
+    const groups = new Map<string, Array<{ x: string; y: number; item: TimelineItem }>>()
+
+    for (const item of filteredItems) {
+      const genreId = item.primaryGenreId
+      const genreName = genreId ? (genreMap.get(genreId)?.name ?? 'Other') : 'Other'
+
+      if (!groups.has(genreName)) groups.set(genreName, [])
+      groups.get(genreName)!.push({
+        x: item.releaseDate.toISOString().slice(0, 10),
+        y: item.voteAverage,
+        item,
+      })
+    }
+
+    return Array.from(groups.entries()).map(([genreName, data]) => ({
+      id: genreName,
+      data,
+    }))
+  }, [filteredItems, genreMap])
+
+  const seriesColors = useMemo(() => {
+    return nivoData.map((series) => {
+      const firstItem = series.data[0]?.item
+      if (!firstItem?.primaryGenreId) return 'var(--muted-foreground)'
+      return genreColorMap.get(firstItem.primaryGenreId) ?? 'var(--muted-foreground)'
+    })
+  }, [nivoData, genreColorMap])
+
 
   if (items.length === 0) {
     return (
-      <div
-        ref={containerRef}
-        className="flex h-[50vh] items-center justify-center rounded-xl border border-border/50 bg-card/50"
-      >
+      <div className="flex h-[50vh] items-center justify-center rounded-xl border border-border/50 bg-card/50">
         <p className="text-muted-foreground">No timeline data available</p>
       </div>
     )
   }
 
-  // Stagger overlapping items vertically
-  const yCenter = innerHeight / 2
-  const positionedItems = items.map((item, idx) => {
-    const cx = xScale(item.releaseDate)
-    const r = radiusScale(item.voteAverage)
-    const row = idx % 3
-    const yOffset = (row - 1) * 40
-    return { ...item, cx, cy: yCenter + yOffset, r }
-  })
-
   return (
-    <div className="space-y-1">
-      <div
-        ref={containerRef}
-        className="relative h-[50vh] rounded-xl border border-border/50 bg-card/50"
-      >
-        {size.width > 0 && size.height > 0 && (
-          <svg
-            ref={svgRef}
-            width={size.width}
-            height={size.height}
-            className="cursor-crosshair"
-          >
-            <g transform={`translate(${MARGIN.left}, ${MARGIN.top})`}>
-              {/* Grid lines */}
-              {xScale.ticks(Math.max(2, Math.floor(innerWidth / 120))).map((tick) => (
-                <line
-                  key={tick.getTime()}
-                  x1={xScale(tick)}
-                  x2={xScale(tick)}
-                  y1={0}
-                  y2={innerHeight}
-                  style={{ stroke: 'var(--border)' }}
-                  strokeOpacity={0.3}
-                  strokeDasharray="4 4"
-                />
-              ))}
-
-              {/* Brush layer — behind circles, pointer-events only when not hovering a circle */}
-              <g ref={brushRef} style={{ pointerEvents: hoveredItem ? 'none' : 'all' }} />
-
-              {/* Movie circles — on top for hover/click */}
-              {positionedItems.map((item) => (
-                <circle
-                  key={`${item.id}-${item.character}`}
-                  cx={item.cx}
-                  cy={item.cy}
-                  r={item.r}
-                  style={{
-                    fill: getColor(item.primaryGenreId),
-                    stroke: getColor(item.primaryGenreId),
-                  }}
-                  fillOpacity={0.7}
-                  strokeWidth={2}
-                  strokeOpacity={0.9}
-                  className={cn(
-                    'cursor-pointer transition-opacity duration-200',
-                    hoveredItem && hoveredItem.id !== item.id && 'opacity-40',
-                  )}
-                  onMouseEnter={(e) => handleCircleEnter(item, e)}
-                  onMouseLeave={handleCircleLeave}
-                  onClick={() => handleCircleClick(item)}
-                  aria-label={`${item.title} (${item.year}) - Rating: ${item.voteAverage.toFixed(1)}`}
-                />
-              ))}
-
-              {/* X axis */}
-              <g
-                ref={xAxisRef}
-                transform={`translate(0, ${innerHeight})`}
-                style={{ pointerEvents: 'none' }}
-              />
-            </g>
-          </svg>
-        )}
-
-        {/* Reset zoom button */}
-        {brushExtent && (
-          <div className="absolute top-3 right-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleResetZoom}
-              className="shadow-lg backdrop-blur-md bg-card/90"
-            >
-              Reset Zoom
+    <div className="space-y-2">
+      {/* Zoom controls */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded-xl border border-border/50 bg-card/90 p-1 shadow-sm backdrop-blur-md">
+            <Button variant="ghost" size="icon-sm" onClick={shiftLeft} aria-label="Pan left">
+              <span className="text-xs font-bold">←</span>
             </Button>
+            <Button variant="ghost" size="icon-sm" onClick={zoomIn} aria-label="Zoom in">
+              <ZoomIn size={14} />
+            </Button>
+            <Button variant="ghost" size="icon-sm" onClick={zoomOut} aria-label="Zoom out">
+              <ZoomOut size={14} />
+            </Button>
+            <Button variant="ghost" size="icon-sm" onClick={shiftRight} aria-label="Pan right">
+              <span className="text-xs font-bold">→</span>
+            </Button>
+            {isZoomed && (
+              <Button variant="ghost" size="icon-sm" onClick={resetZoom} aria-label="Reset zoom">
+                <RotateCcw size={14} />
+              </Button>
+            )}
           </div>
-        )}
-
-        {hoveredItem && (
-          <TimelineTooltip
-            item={hoveredItem}
-            x={tooltipPos.x}
-            y={tooltipPos.y}
-            genreMap={genreMap}
-            onMouseEnter={handleTooltipEnter}
-            onMouseLeave={handleTooltipLeave}
-          />
-        )}
+          <span className="text-sm text-muted-foreground">
+            {yearRange[0]} — {yearRange[1]}
+            {isZoomed && ` (${filteredItems.length} of ${items.length} titles)`}
+          </span>
+        </div>
       </div>
 
+      {/* Chart */}
+      <div ref={chartContainerRef} className="relative h-[50vh] min-h-80 rounded-xl border border-border/50 bg-card/50">
+        <ResponsiveScatterPlot
+          data={nivoData}
+          margin={{ top: 30, right: 30, bottom: 60, left: 60 }}
+          xScale={{
+            type: 'time',
+            format: '%Y-%m-%d',
+            precision: 'day',
+            min: `${yearRange[0]}-01-01`,
+            max: `${yearRange[1]}-12-31`,
+          }}
+          xFormat="time:%Y"
+          yScale={{ type: 'linear', min: 0, max: 10 }}
+          yFormat={(v) => `${Number(v).toFixed(1)} ★`}
+          colors={seriesColors}
+          nodeSize={(d) => {
+            const rating = (d as unknown as { data: { y: number } }).data.y
+            return Math.max(8, rating * 2.5)
+          }}
+          blendMode="normal"
+          enableGridX={true}
+          enableGridY={true}
+          axisBottom={{
+            format: '%Y',
+            tickSize: 0,
+            tickPadding: 10,
+            legend: 'Year',
+            legendPosition: 'middle',
+            legendOffset: 45,
+          }}
+          axisLeft={{
+            tickSize: 0,
+            tickPadding: 10,
+            legend: 'Rating',
+            legendPosition: 'middle',
+            legendOffset: -45,
+          }}
+          useMesh={true}
+          onMouseMove={(node, event) => {
+            const raw = node as unknown as Record<string, unknown>
+            // nivo scatterplot node has .data which is our { x, y, item } object
+            const dataObj = raw.data as Record<string, unknown> | undefined
+            const item = dataObj?.item as TimelineItem | undefined
+            if (item && event) {
+              showStickyTooltip(item, (event as unknown as MouseEvent).clientX, (event as unknown as MouseEvent).clientY)
+            }
+          }}
+          onMouseLeave={scheduleHideTooltip}
+          tooltip={() => null}
+          theme={{
+            text: { fill: 'var(--foreground)', fontFamily: 'Geist Variable, sans-serif' },
+            grid: { line: { stroke: 'var(--border)', strokeOpacity: 0.3 } },
+            axis: {
+              ticks: { text: { fill: 'var(--muted-foreground)', fontSize: 11 } },
+              legend: { text: { fill: 'var(--muted-foreground)', fontSize: 13, fontWeight: 600 } },
+            },
+          }}
+          animate={false}
+        />
+
+        {/* Sticky tooltip */}
+        {stickyItem && (
+          <div
+            className="absolute z-50 w-64 rounded-xl border border-border/50 bg-popover/95 p-3 shadow-xl backdrop-blur-xl"
+            style={{ left: stickyPos.x + 15, top: stickyPos.y - 30 }}
+            onMouseEnter={handleTooltipEnter}
+            onMouseLeave={handleTooltipLeave}
+          >
+            <div className="flex gap-3">
+              {stickyItem.posterPath ? (
+                <img
+                  src={`${POSTER_SIZES.thumbnail}${stickyItem.posterPath}`}
+                  alt={stickyItem.title}
+                  className="h-20 w-14 shrink-0 rounded-lg object-cover"
+                />
+              ) : (
+                <div className="flex h-20 w-14 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground text-xs">
+                  No img
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-popover-foreground">{stickyItem.title}</p>
+                <p className="text-xs text-muted-foreground">{stickyItem.year}</p>
+                {stickyItem.character && (
+                  <p className="mt-0.5 text-xs text-primary">as {stickyItem.character}</p>
+                )}
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {stickyItem.voteAverage > 0 && (
+                    <Badge variant="secondary" className="text-[10px]">
+                      ★ {stickyItem.voteAverage.toFixed(1)}
+                    </Badge>
+                  )}
+                  {(() => {
+                    const gn = stickyItem.primaryGenreId ? genreMap.get(stickyItem.primaryGenreId)?.name : null
+                    return gn ? <Badge variant="outline" className="text-[10px]">{gn}</Badge> : null
+                  })()}
+                </div>
+                <div className="mt-2">
+                  <Link to={stickyItem.mediaType === 'movie' ? `/movie/${stickyItem.id}` : '#'}>
+                    <Button variant="outline" size="xs" className="gap-1">
+                      <ExternalLink size={12} /> View details
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
       <TimelineLegend genreColorMap={genreColorMap} genreMap={genreMap} />
     </div>
   )
