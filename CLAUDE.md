@@ -86,14 +86,50 @@ A data visualization app for exploring movie industry connections. Users search 
 - Constants: `UPPER_SNAKE_CASE` inside `camelCase.ts` files
 - Test files: colocated as `ComponentName.test.tsx`
 
+### Design System & UI Quality
+This app targets a premium, modern UI — as if designed by a senior UI designer. Every screen, component, and interaction must feel polished, intentional, and consistent.
+
+**Visual identity:**
+- Clean, spacious layouts with generous whitespace — never cramped
+- Subtle depth via layered surfaces: cards float over backgrounds with soft shadows and/or borders
+- Smooth micro-interactions: hover states, focus rings, transitions on every interactive element (150–300ms ease)
+- Rounded corners consistently applied (`rounded-lg` for cards/panels, `rounded-full` for avatars/badges)
+- Typography hierarchy: clear distinction between headings, body, captions, labels — use font-weight and size, not just size
+- Icons: use Lucide React for a consistent, modern icon set — no mixing icon libraries
+
+**Light/Dark theme:**
+- Implemented via Tailwind `dark:` variant with `class` strategy on `<html>`
+- User preference stored in `useAppStore` (Zustand) as `theme: 'light' | 'dark' | 'system'`
+- On mount, resolve `'system'` via `matchMedia('(prefers-color-scheme: dark)')` and listen for changes
+- Toggle component in Header — animated icon transition (sun ↔ moon)
+- Every component must support both themes — never hardcode a color that only works on one background
+- D3 visualizations consume theme-aware colors from `src/utils/theme.ts` which reads the current resolved theme
+
+**Color palette (defined in Tailwind theme + CSS variables):**
+- Surfaces: light mode uses white/gray-50/gray-100 layers; dark mode uses gray-950/gray-900/gray-800 layers
+- Primary accent: indigo-500 (interactive elements, active states, links)
+- Secondary accent: violet-500 (visualization highlights, graph connections)
+- Success/Warning/Error: emerald-500 / amber-500 / rose-500
+- Text: gray-900/gray-700/gray-500 in light; gray-50/gray-300/gray-500 in dark
+- All colors referenced via CSS custom properties so D3/Canvas can read them at runtime
+
+**Consistency rules:**
+- Spacing scale: 4px base (Tailwind default) — use `p-4`, `gap-6`, `mb-8`, etc. consistently; avoid arbitrary values like `p-[13px]`
+- Border radius: `rounded-lg` (8px) for containers, `rounded-xl` (12px) for modals/large cards, `rounded-full` for pills/avatars
+- Shadow scale: `shadow-sm` for subtle cards, `shadow-md` for elevated panels, `shadow-lg` for modals/dropdowns
+- Transitions: `transition-colors duration-200` on all interactive elements; `transition-all duration-300` for layout shifts
+- Focus states: visible `ring-2 ring-indigo-500 ring-offset-2` on all focusable elements — never remove outline without replacement
+- Disabled states: `opacity-50 cursor-not-allowed` — consistent across buttons, inputs, links
+- Loading states: skeleton shimmer animation (not spinners) matching the shape of the content being loaded
+
 ### Tailwind CSS
 - Use Tailwind utility classes directly in JSX — no separate CSS files per component
 - Extract repeated class combinations into components, not `@apply` (prefer composition over abstraction)
 - Use `@apply` only in `global.css` for base element styles (e.g., body, headings) if needed
-- Custom theme values (colors, spacing, fonts) defined in `tailwind.config.ts` — not hardcoded
+- Custom theme values (colors, spacing, fonts) defined via `@theme` in `global.css` and CSS custom properties
 - Use Tailwind's responsive prefixes (`sm:`, `md:`, `lg:`) — mobile-first approach
-- For D3/SVG elements that Tailwind can't style: use inline `style` prop with theme values from a shared constants file
-- Dark mode via Tailwind `dark:` variant with class strategy
+- For D3/SVG elements that Tailwind can't style: read CSS custom properties via `getComputedStyle()` in `src/utils/theme.ts`
+- Dark mode via Tailwind `dark:` variant with class strategy on `<html>` element
 - Use `cn()` helper (clsx + tailwind-merge) for conditional class composition
 - No `!important` ever
 - Keep class strings readable — break long className onto multiple lines

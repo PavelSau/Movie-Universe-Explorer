@@ -44,7 +44,8 @@ src/
 │
 ├── components/
 │   ├── layout/
-│   │   ├── Header.tsx             # Logo, search bar, navigation
+│   │   ├── Header.tsx             # Logo, search bar, navigation, theme toggle
+│   │   ├── ThemeToggle.tsx        # Light/dark/system switcher with animated icon
 │   │   ├── Sidebar.tsx            # Entity detail panel (film/actor info)
 │   │   └── ViewSwitcher.tsx       # Tabs: Graph | Timeline | Heatmap | Trending
 │   │
@@ -97,7 +98,7 @@ src/
 │   └── useDebounce.ts             # Generic debounce hook
 │
 ├── stores/
-│   ├── useAppStore.ts             # Navigation: selected entity, active view, search query
+│   ├── useAppStore.ts             # Navigation: selected entity, active view, search query, theme
 │   └── useGraphStore.ts           # Graph UI: zoom level, expanded nodes, pinned nodes
 │
 ├── services/
@@ -119,8 +120,10 @@ src/
 │   └── trending.types.ts          # TrendingItem, TimeWindow
 │
 ├── utils/
+│   ├── cn.ts                      # cn() helper: clsx + tailwind-merge
+│   ├── theme.ts                   # Reads resolved CSS custom properties for D3/Canvas
 │   ├── formatters.ts              # formatRuntime, formatDate, formatCurrency
-│   ├── colorScales.ts             # D3 color scales for genres, ratings
+│   ├── colorScales.ts             # D3 color scales for genres, ratings (theme-aware)
 │   ├── graphLayout.ts             # Force simulation config, collision params
 │   └── constants.ts               # TMDb image base URLs, breakpoints, limits
 │
@@ -367,11 +370,12 @@ React renders SVG elements using computed positions from D3. This avoids conflic
 
 #### Zustand Store Boundaries
 
-**useAppStore** — global navigation state:
+**useAppStore** — global navigation + UI state:
 - `selectedEntity: { type: 'movie' | 'person', id: number } | null`
 - `activeView: 'graph' | 'timeline' | 'heatmap' | 'trending'`
 - `searchQuery: string`
-- Actions: `selectEntity()`, `setActiveView()`, `setSearchQuery()`
+- `theme: 'light' | 'dark' | 'system'`
+- Actions: `selectEntity()`, `setActiveView()`, `setSearchQuery()`, `setTheme()`
 
 **useGraphStore** — graph visualization state (isolated to avoid re-rendering other views):
 - `zoomLevel: number`
@@ -396,6 +400,73 @@ Each visualization panel is wrapped in its own `<ErrorBoundary>`. If the graph c
 - **Tablet (768–1024px):** Sidebar collapses to overlay, visualization full-width
 - **Mobile (<768px):** Stacked layout, simplified visualizations (fewer nodes, smaller heatmap)
 - All D3 visualizations use `useResizeObserver` to redraw on container size change
+
+### Design System & Theming
+
+**Theme architecture:**
+```
+User selects theme (light/dark/system)
+       │
+       ▼
+useAppStore.setTheme() → persists to localStorage
+       │
+       ▼
+ThemeProvider (useEffect) resolves 'system' via matchMedia
+       │
+       ▼
+Sets/removes 'dark' class on <html> element
+       │
+       ▼
+┌───────────────────────────┬────────────────────────────────┐
+│ Tailwind components       │ D3/Canvas visualizations       │
+│ react via dark: variant   │ read CSS vars via theme.ts     │
+│ (automatic)               │ getComputedStyle(root)         │
+└───────────────────────────┴────────────────────────────────┘
+```
+
+**CSS custom properties (defined in global.css via @theme):**
+```css
+/* Light mode (default) */
+--color-surface-base: oklch(1 0 0);          /* white */
+--color-surface-raised: oklch(0.985 0 0);    /* gray-50 */
+--color-surface-overlay: oklch(0.97 0 0);    /* gray-100 */
+--color-text-primary: oklch(0.145 0 0);      /* gray-900 */
+--color-text-secondary: oklch(0.373 0 0);    /* gray-700 */
+--color-text-muted: oklch(0.556 0 0);        /* gray-500 */
+--color-border-default: oklch(0.872 0 0);    /* gray-300 */
+--color-accent-primary: oklch(0.585 0.233 277); /* indigo-500 */
+--color-accent-secondary: oklch(0.606 0.25 292); /* violet-500 */
+
+/* Dark mode (.dark) — overrides above */
+--color-surface-base: oklch(0.145 0 0);      /* gray-950 */
+--color-surface-raised: oklch(0.205 0 0);    /* gray-900 */
+--color-surface-overlay: oklch(0.269 0 0);   /* gray-800 */
+--color-text-primary: oklch(0.985 0 0);      /* gray-50 */
+--color-text-secondary: oklch(0.872 0 0);    /* gray-300 */
+--color-text-muted: oklch(0.556 0 0);        /* gray-500 */
+--color-border-default: oklch(0.373 0 0);    /* gray-700 */
+```
+
+**Shared UI primitives (in `components/shared/`):**
+
+| Component | Purpose | Key styles |
+|-----------|---------|------------|
+| `Card` | Content container | Surface-raised bg, rounded-xl, shadow-sm, border |
+| `Button` | Primary/secondary/ghost actions | Accent bg, hover scale, focus ring, disabled state |
+| `Badge` | Genre tags, status labels | Rounded-full pill, muted bg, small text |
+| `Tooltip` | Hover info on charts/nodes | Surface-overlay bg, shadow-lg, fade-in animation |
+| `Input` | Search, filters | Border, focus ring-2, placeholder text-muted |
+| `LoadingSkeleton` | Async placeholder | Shimmer animation matching content shape |
+| `EmptyState` | No data illustration | Centered layout, muted icon + text |
+
+**Micro-interactions applied everywhere:**
+- Buttons: `hover:brightness-110 active:scale-[0.98]` — tactile press feel
+- Cards: `hover:shadow-md hover:border-accent-primary/20 transition-all duration-200` — subtle lift on hover
+- Navigation links: underline slide-in from left on hover
+- View switcher tabs: active indicator slides between tabs (not jumps)
+- Theme toggle: sun/moon icon rotates during transition
+- Search dropdown: fade + slide-down with `animate-in`
+- Visualization panels: `fade-in` on mount via CSS animation
 
 ### Testing Strategy
 
@@ -450,6 +521,7 @@ VITE_API_BASE_URL=http://localhost:3001/api
 | d3 | Visualization engine |
 | tailwindcss | Utility-first styling |
 | clsx + tailwind-merge | Conditional class composition (`cn()` helper) |
+| lucide-react | Icon library (consistent modern icon set) |
 | zod | Form/input validation (shared schemas with backend) |
 | axios | HTTP client |
 
