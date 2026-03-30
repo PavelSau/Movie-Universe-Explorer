@@ -1,8 +1,9 @@
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useTheme } from '@/hooks/useTheme'
+import { useAuthStore } from '@/stores/useAuthStore'
 import { Header } from '@/components/layout/Header'
 import { HomePage } from '@/pages/HomePage'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -41,6 +42,8 @@ function PageSkeleton() {
 
 function AppContent() {
   useTheme()
+  const restore = useAuthStore((s) => s.restore)
+  useEffect(() => { restore() }, [restore])
 
   return (
     <BrowserRouter>

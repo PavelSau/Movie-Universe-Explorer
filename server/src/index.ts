@@ -8,6 +8,7 @@ import { personRoutes } from './routes/person.routes.js'
 import { discoverRoutes } from './routes/discover.routes.js'
 import { genresRoutes } from './routes/genres.routes.js'
 import { providersRoutes } from './routes/providers.routes.js'
+import { authRoutes } from './routes/auth.routes.js'
 import { errorHandler } from './middleware/errorHandler.js'
 
 const app = express()
@@ -22,6 +23,7 @@ app.use('/api/person', personRoutes)
 app.use('/api/discover', discoverRoutes)
 app.use('/api/genres', genresRoutes)
 app.use('/api/providers', providersRoutes)
+app.use('/api/auth', authRoutes)
 
 app.use(errorHandler)
 
