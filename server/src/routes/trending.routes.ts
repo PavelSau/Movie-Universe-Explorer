@@ -36,13 +36,15 @@ router.get('/people', cacheMiddleware(900), async (req, res, next) => {
 
     const response = await tmdbClient.get(`/trending/person/${timeWindow}`)
 
-    const results = response.data.results.map((item: Record<string, unknown>) => ({
-      id: item.id,
-      name: item.name,
-      profilePath: item.profile_path,
-      knownForDepartment: item.known_for_department,
-      popularity: item.popularity,
-    }))
+    const results = response.data.results
+      .filter((item: Record<string, unknown>) => item.adult !== true)
+      .map((item: Record<string, unknown>) => ({
+        id: item.id,
+        name: item.name,
+        profilePath: item.profile_path,
+        knownForDepartment: item.known_for_department,
+        popularity: item.popularity,
+      }))
 
     res.json({ results, timeWindow })
   } catch (err) {
