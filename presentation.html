@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Movie Universe Explorer — Hackathon Demo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg-dark: #0f0a1a;
+    --bg-card: #1a1128;
+    --primary: #8b5cf6;
+    --accent: #c084fc;
+    --text: #f1f0f5;
+    --text-muted: #a8a0b8;
+    --gradient-1: #7c3aed;
+    --gradient-2: #c084fc;
+    --gradient-3: #e879f9;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    user-select: none;
+  }
+
+  .deck { position: relative; width: 100vw; height: 100vh; }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    padding: 50px 80px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    overflow: hidden;
+  }
+  .slide.enter-right { transform: translateX(80px); }
+  .slide.enter-left { transform: translateX(-80px); }
+  .slide.active { opacity: 1; transform: translateX(0); pointer-events: all; }
+
+  /* Orbs */
+  .orb { position: absolute; border-radius: 50%; filter: blur(120px); pointer-events: none; opacity: 0.35; }
+  .orb-1 { width: 500px; height: 500px; background: var(--gradient-1); top: -150px; left: -100px; }
+  .orb-2 { width: 400px; height: 400px; background: var(--gradient-3); bottom: -100px; right: -80px; }
+  .orb-3 { width: 300px; height: 300px; background: var(--gradient-2); top: 40%; left: 55%; }
+
+  /* Typography */
+  h1 { font-size: 3.8rem; font-weight: 900; line-height: 1.1; letter-spacing: -0.03em; margin-bottom: 20px; }
+  h2 { font-size: 2.6rem; font-weight: 800; line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 16px; }
+  h3 { font-size: 1.4rem; font-weight: 600; margin-bottom: 10px; color: var(--accent); }
+  p, li { font-size: 1.25rem; line-height: 1.6; color: var(--text-muted); }
+
+  .gradient-text {
+    background: linear-gradient(135deg, var(--gradient-1), var(--gradient-2), var(--gradient-3));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .subtitle { font-size: 1.4rem; font-weight: 400; color: var(--text-muted); margin-bottom: 32px; }
+
+  .section-label {
+    display: inline-flex; align-items: center; gap: 8px; padding: 7px 18px;
+    border-radius: 100px; background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.3);
+    font-size: 0.85rem; font-weight: 600; color: var(--primary);
+    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 20px;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--bg-card); border: 1px solid rgba(139,92,246,0.15);
+    border-radius: 16px; padding: 24px 28px; backdrop-filter: blur(20px);
+  }
+  .card-grid { display: grid; gap: 16px; width: 100%; max-width: 1100px; }
+  .card-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .card-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+  /* Stats */
+  .stat-number {
+    font-size: 2.8rem; font-weight: 900; line-height: 1; margin-bottom: 4px;
+    background: linear-gradient(135deg, var(--gradient-1), var(--gradient-2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .stat-label { font-size: 0.95rem; color: var(--text-muted); font-weight: 500; }
+
+  /* Lists */
+  ul { list-style: none; padding: 0; }
+  ul li { padding: 8px 0; padding-left: 24px; position: relative; font-size: 1.15rem; }
+  ul li::before { content: '▸'; position: absolute; left: 0; color: var(--primary); font-weight: bold; }
+
+  /* Quote */
+  .quote {
+    font-size: 1.4rem; font-style: italic; color: var(--text);
+    border-left: 4px solid var(--primary); padding-left: 20px; margin: 16px 0; max-width: 800px;
+  }
+
+  /* Timeline */
+  .timeline { display: flex; flex-direction: column; gap: 5px; width: 100%; max-width: 900px; }
+  .timeline-item { display: flex; align-items: center; gap: 14px; padding: 7px 14px; border-radius: 10px; }
+  .timeline-commit {
+    font-family: 'SF Mono','Fira Code',monospace; font-size: 0.78rem; color: var(--primary);
+    background: rgba(139,92,246,0.12); padding: 3px 10px; border-radius: 6px;
+    min-width: 56px; text-align: center; font-weight: 600;
+  }
+  .timeline-text { color: var(--text-muted); font-size: 1rem; }
+  .timeline-text strong { color: var(--text); font-weight: 600; }
+
+  /* Tech badges */
+  .tech-grid { display: flex; flex-wrap: wrap; gap: 10px; max-width: 900px; justify-content: center; }
+  .tech-badge {
+    padding: 7px 16px; border-radius: 100px; font-size: 0.9rem; font-weight: 600;
+    border: 1px solid rgba(139,92,246,0.2); background: rgba(139,92,246,0.08); color: var(--text);
+  }
+  .tech-badge.highlight { background: linear-gradient(135deg, var(--gradient-1), var(--gradient-2)); border-color: transparent; color: white; }
+
+  /* Code block */
+  .code-block {
+    background: rgba(0,0,0,0.4); border: 1px solid rgba(139,92,246,0.2); border-radius: 12px;
+    padding: 20px 24px; font-family: 'SF Mono','Fira Code',monospace; font-size: 0.95rem;
+    line-height: 1.7; color: var(--text-muted); max-width: 680px; width: 100%;
+  }
+  .code-block .keyword { color: var(--primary); }
+  .code-block .string { color: #34d399; }
+  .code-block .comment { color: #4a4458; }
+
+  /* Emphasis box */
+  .emphasis-box {
+    background: linear-gradient(135deg, rgba(124,58,237,0.15), rgba(192,132,252,0.1));
+    border: 1px solid rgba(139,92,246,0.25); border-radius: 16px;
+    padding: 20px 28px; max-width: 800px; width: 100%;
+  }
+  .emphasis-box p { color: var(--text); font-size: 1.15rem; }
+
+  /* Lessons */
+  .lesson-number { font-size: 1.8rem; font-weight: 900; color: var(--primary); opacity: 0.5; line-height: 1; margin-bottom: 6px; }
+  .lesson-title { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .lesson-desc { font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; }
+
+  /* Layouts */
+  .left-align { align-items: flex-start; text-align: left; }
+  .center { text-align: center; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; width: 100%; max-width: 1100px; align-items: start; }
+
+  /* Screenshots */
+  .screenshot {
+    border-radius: 12px; border: 1px solid rgba(139,92,246,0.2);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(139,92,246,0.1);
+    max-width: 100%; max-height: 100%; object-fit: contain;
+  }
+  .screenshot-grid {
+    display: grid; gap: 16px; width: 100%; max-width: 1100px;
+  }
+  .screenshot-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .screenshot-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .screenshot-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .screenshot-wrap .screenshot-label {
+    font-size: 0.9rem; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .screenshot-hero {
+    max-height: 55vh; border-radius: 14px; border: 1px solid rgba(139,92,246,0.25);
+    box-shadow: 0 25px 80px rgba(0,0,0,0.6), 0 0 60px rgba(139,92,246,0.12);
+  }
+
+  /* Fade-up animation */
+  .fade-up { opacity: 0; transform: translateY(20px); }
+  .slide.active .fade-up { animation: fadeUp 0.5s ease forwards; }
+  .slide.active .fade-up:nth-child(2) { animation-delay: 0.08s; }
+  .slide.active .fade-up:nth-child(3) { animation-delay: 0.16s; }
+  .slide.active .fade-up:nth-child(4) { animation-delay: 0.24s; }
+  .slide.active .fade-up:nth-child(5) { animation-delay: 0.32s; }
+  @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+
+  /* Navigation */
+  .nav-bar {
+    position: fixed; bottom: 0; left: 0; right: 0; height: 56px; z-index: 200;
+    display: flex; align-items: center; justify-content: center; gap: 20px;
+    background: rgba(15,10,26,0.85); backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(139,92,246,0.1);
+  }
+  .nav-btn {
+    width: 44px; height: 44px; border-radius: 10px; border: 1px solid rgba(139,92,246,0.25);
+    background: rgba(139,92,246,0.1); color: var(--text); font-size: 1.2rem;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .nav-btn:hover { background: rgba(139,92,246,0.25); border-color: var(--primary); }
+  .nav-btn:disabled { opacity: 0.25; cursor: default; }
+  .nav-btn:disabled:hover { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.25); }
+  .nav-counter { font-size: 0.9rem; color: var(--text-muted); font-weight: 500; min-width: 60px; text-align: center; }
+
+  .progress-bar {
+    position: fixed; bottom: 56px; left: 0; height: 3px; z-index: 201;
+    background: linear-gradient(90deg, var(--gradient-1), var(--gradient-2), var(--gradient-3));
+    transition: width 0.4s ease;
+  }
+</style>
+</head>
+<body>
+
+<div class="deck" id="deck">
+
+  <!-- SLIDE 0: Title -->
+  <div class="slide active center">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="section-label fade-up">Hackathon 2026</div>
+    <h1 class="fade-up"><span class="gradient-text">Movie Universe</span><br>Explorer</h1>
+    <p class="subtitle fade-up">Visualize connections, timelines, and trends across cinema</p>
+    <div class="tech-grid fade-up" style="margin-top: 12px">
+      <span class="tech-badge highlight">React 19</span>
+      <span class="tech-badge highlight">D3.js</span>
+      <span class="tech-badge highlight">TypeScript</span>
+      <span class="tech-badge">Zustand</span>
+      <span class="tech-badge">TanStack Query</span>
+      <span class="tech-badge">Express 5</span>
+      <span class="tech-badge">PostgreSQL</span>
+      <span class="tech-badge">Docker</span>
+    </div>
+  </div>
+
+  <!-- SLIDE 1: The Problem -->
+  <div class="slide left-align">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="section-label fade-up">1 &mdash; The Problem</div>
+    <h2 class="fade-up">Cinema is a <span class="gradient-text">connected universe</span>.<br>But you browse it as isolated pages.</h2>
+    <div class="card-grid cols-3 fade-up" style="margin-top: 28px">
+      <div class="card">
+        <h3>Dead Ends</h3>
+        <p style="font-size:1.05rem">IMDb shows a movie page. You click an actor. Another page. No connections visible.</p>
+      </div>
+      <div class="card">
+        <h3>No Big Picture</h3>
+        <p style="font-size:1.05rem">How did Brad Pitt's career evolve? Which genres dominate each decade? No visual answer.</p>
+      </div>
+      <div class="card">
+        <h3>Hidden Patterns</h3>
+        <p style="font-size:1.05rem">Directors who recast the same actors. Genre waves over time. Invisible in current tools.</p>
+      </div>
+    </div>
+    <div class="emphasis-box fade-up" style="margin-top: 28px">
+      <p><strong>The solution:</strong> Turn the movie industry into an interactive, explorable graph of connections, timelines, and heatmaps.</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 2: The First Prompt -->
+  <div class="slide left-align">
+    <div class="orb orb-3"></div>
+    <div class="orb orb-1"></div>
+    <div class="section-label fade-up">2 &mdash; The First Prompt</div>
+    <h2 class="fade-up">Before any code &mdash;<br>I wrote <span class="gradient-text">the rules</span>.</h2>
+    <div class="card-grid cols-2 fade-up" style="margin-top: 32px">
+      <div class="card">
+        <h3>CLAUDE.md &mdash; 400+ lines</h3>
+        <p style="font-size:1.1rem">Strict NEVER/ALWAYS rules. Design system. Do NOT list that <strong>grew with every Claude mistake</strong>.</p>
+      </div>
+      <div class="card">
+        <h3>ARCHITECTURE.md</h3>
+        <p style="font-size:1.1rem">Full folder structure, data flow diagrams, state boundaries, testing pyramid &mdash; all <strong>before line 1 of code</strong>.</p>
+      </div>
+    </div>
+    <div class="code-block fade-up" style="margin-top: 28px; max-width: 900px">
+      <span class="keyword">NEVER</span> hardcode colors &nbsp;&bull;&nbsp; <span class="keyword">ALWAYS</span> use shadcn components &nbsp;&bull;&nbsp; <span class="keyword">NEVER</span> use overflow-hidden on layouts<br>
+      D3 handles <span class="string">data transforms</span> &nbsp;&bull;&nbsp; React handles <span class="string">DOM rendering</span> &nbsp;&bull;&nbsp; Zustand for <span class="string">app state</span> &nbsp;&bull;&nbsp; TanStack Query for <span class="string">server state</span>
+    </div>
+    <div class="quote fade-up" style="margin-top: 24px">
+      "Claude followed the vision &mdash; because it was written down."
+    </div>
+  </div>
+
+  <!-- SLIDE 3: Build Montage -->
+  <div class="slide left-align">
+    <div class="orb orb-2"></div>
+    <div class="section-label fade-up">3 &mdash; The Build Montage</div>
+    <h2 class="fade-up"><span class="gradient-text">26 commits.</span> One coherent product.</h2>
+    <div class="timeline fade-up" style="margin-top: 16px">
+      <div class="timeline-item"><span class="timeline-commit">#1-2</span><span class="timeline-text">Scaffold + <strong>architecture docs before any code</strong></span></div>
+      <div class="timeline-item"><span class="timeline-commit">#3-4</span><span class="timeline-text">Cinematic UI &mdash; <strong>violet palette, glassmorphism, shadcn/ui</strong></span></div>
+      <div class="timeline-item"><span class="timeline-commit">#5-6</span><span class="timeline-text">Home page + search + <strong>Express backend proxy to TMDb</strong></span></div>
+      <div class="timeline-item"><span class="timeline-commit">#7-10</span><span class="timeline-text"><strong>D3 force graph</strong> &mdash; expand/collapse nodes, drag, zoom &mdash; needed full rewrite</span></div>
+      <div class="timeline-item"><span class="timeline-commit">#11-14</span><span class="timeline-text"><strong>2 parallel FE devs</strong> + architect &mdash; timeline &amp; heatmap simultaneously</span></div>
+      <div class="timeline-item"><span class="timeline-commit">#15-17</span><span class="timeline-text"><strong>3 parallel FE devs</strong> + architect &mdash; trailers, orbit, trending people</span></div>
+      <div class="timeline-item"><span class="timeline-commit">#18-19</span><span class="timeline-text"><strong>Docker Compose</strong> &mdash; PostgreSQL, JWT auth, wishlist</span></div>
+      <div class="timeline-item"><span class="timeline-commit">#20-26</span><span class="timeline-text"><strong>5 parallel QA agents</strong> + architect review &mdash; 345 tests + E2E</span></div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4: Multi-Agency -->
+  <div class="slide left-align">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-3"></div>
+    <div class="section-label fade-up">3 &mdash; Multi-Agent Orchestration</div>
+    <h2 class="fade-up">I used Claude as a <span class="gradient-text">dev team</span>, not a single coder</h2>
+    <div class="card-grid cols-2 fade-up" style="margin-top: 20px">
+      <div class="card">
+        <h3>Feature Development</h3>
+        <ul>
+          <li><strong>2 Senior FE Devs in parallel</strong> built Timeline + Heatmap simultaneously</li>
+          <li><strong>3 Senior FE Devs in parallel</strong> built Trailers + Similar Orbit + Trending People</li>
+          <li><strong>1 Architect agent</strong> reviewed each batch &mdash; checked for conflicts, verified build, spot-checked quality</li>
+          <li>Each agent worked in its own <strong>git worktree</strong> &mdash; full isolation</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Testing Blitz</h3>
+        <ul>
+          <li><strong>5 QA Specialists in parallel:</strong></li>
+          <li style="padding-left:40px">QA 1: Unit tests &mdash; utils, stores</li>
+          <li style="padding-left:40px">QA 2: Unit tests &mdash; data hooks</li>
+          <li style="padding-left:40px">QA 3: Integration &mdash; components + MSW</li>
+          <li style="padding-left:40px">QA 4: Integration &mdash; hooks + MSW</li>
+          <li style="padding-left:40px">QA 5: Server unit tests</li>
+          <li><strong>1 QA Architect</strong> reviewed all tests, filled gaps, fixed flaky patterns</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: Stats -->
+  <div class="slide center">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-3"></div>
+    <div class="section-label fade-up">By the Numbers</div>
+    <h2 class="fade-up">What I built</h2>
+    <div class="card-grid cols-4 fade-up" style="margin-top: 28px">
+      <div class="card center"><div class="stat-number">7K+</div><div class="stat-label">Lines of Code</div></div>
+      <div class="card center"><div class="stat-number">44</div><div class="stat-label">React Components</div></div>
+      <div class="card center"><div class="stat-number">16</div><div class="stat-label">Custom Hooks</div></div>
+      <div class="card center"><div class="stat-number">345</div><div class="stat-label">Total Tests</div></div>
+    </div>
+    <div class="card-grid cols-4 fade-up" style="margin-top: 16px">
+      <div class="card center"><div class="stat-number">9</div><div class="stat-label">API Routes</div></div>
+      <div class="card center"><div class="stat-number">5</div><div class="stat-label">Visualizations</div></div>
+      <div class="card center"><div class="stat-number">3</div><div class="stat-label">Docker Containers</div></div>
+      <div class="card center"><div class="stat-number">26</div><div class="stat-label">Commits</div></div>
+    </div>
+    <div class="emphasis-box fade-up" style="margin-top: 24px">
+      <p><strong>10+ parallel agent sessions</strong> across features and testing. Each isolated in its own worktree, each reviewed by an architect.</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 5: UI Showcase — Home & Search -->
+  <div class="slide center">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="section-label fade-up">4 &mdash; The Product</div>
+    <h2 class="fade-up">Home &amp; <span class="gradient-text">Search</span></h2>
+    <div class="screenshot-grid cols-2 fade-up" style="margin-top: 24px">
+      <div class="screenshot-wrap">
+        <img src="e2e/screenshots/home.png" class="screenshot" alt="Home page">
+        <span class="screenshot-label">Home &mdash; Trending Movies</span>
+      </div>
+      <div class="screenshot-wrap">
+        <img src="e2e/screenshots/search-results.png" class="screenshot" alt="Search results">
+        <span class="screenshot-label">Live Search with TMDb</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6: UI Showcase — Movie Detail -->
+  <div class="slide center">
+    <div class="orb orb-3"></div>
+    <div class="section-label fade-up">4 &mdash; The Product</div>
+    <h2 class="fade-up"><span class="gradient-text">Movie Detail</span> Page</h2>
+    <div class="screenshot-grid cols-2 fade-up" style="margin-top: 24px">
+      <div class="screenshot-wrap">
+        <img src="e2e/screenshots/movie-detail.png" class="screenshot" alt="Movie detail">
+        <span class="screenshot-label">Backdrop, Metadata, Trailer</span>
+      </div>
+      <div class="screenshot-wrap">
+        <img src="e2e/screenshots/movie-cast.png" class="screenshot" alt="Movie cast">
+        <span class="screenshot-label">Cast, Watch Providers, Similar</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7: UI Showcase — Person & Visualizations -->
+  <div class="slide center">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="section-label fade-up">4 &mdash; The Product</div>
+    <h2 class="fade-up"><span class="gradient-text">Person</span> &amp; Visualizations</h2>
+    <div class="screenshot-grid cols-2 fade-up" style="margin-top: 24px">
+      <div class="screenshot-wrap">
+        <img src="e2e/screenshots/person-detail.png" class="screenshot" alt="Person detail">
+        <span class="screenshot-label">Person Bio &amp; Graph</span>
+      </div>
+      <div class="screenshot-wrap">
+        <img src="e2e/screenshots/person-viz.png" class="screenshot" alt="Person visualizations">
+        <span class="screenshot-label">Timeline &amp; Genre Radar</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 8: UI Showcase — Heatmap -->
+  <div class="slide center">
+    <div class="orb orb-3"></div>
+    <div class="orb orb-2"></div>
+    <div class="section-label fade-up">4 &mdash; The Product</div>
+    <h2 class="fade-up">Genre <span class="gradient-text">Heatmap</span></h2>
+    <img src="e2e/screenshots/heatmap.png" class="screenshot-hero fade-up" alt="Heatmap page" style="margin-top: 24px">
+  </div>
+
+  <!-- SLIDE 9: Claude Battles -->
+  <div class="slide left-align">
+    <div class="orb orb-2"></div>
+    <div class="section-label fade-up" style="background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.3); color: #f87171;">5 &mdash; When Claude Fought Back</div>
+    <h2 class="fade-up">Problems Claude created <span class="gradient-text">and couldn't easily fix</span></h2>
+    <div class="card-grid cols-2 fade-up" style="margin-top: 20px">
+      <div class="card" style="border-color: rgba(239,68,68,0.2)">
+        <div class="lesson-number" style="color: #f87171">overflow-hidden</div>
+        <div class="lesson-title">Search dropdown invisible behind hero section</div>
+        <div class="lesson-desc">Claude kept adding <code>overflow-hidden</code> to layout containers. Search results were clipped. I had to explicitly say "I hate overflow-hidden" and add it to the Do NOT list in CLAUDE.md. Took 3 rounds to fully fix.</div>
+      </div>
+      <div class="card" style="border-color: rgba(239,68,68,0.2)">
+        <div class="lesson-number" style="color: #f87171">Hardcoded colors</div>
+        <div class="lesson-title">Kept using bg-gray-*, text-white, bg-black</div>
+        <div class="lesson-desc">Even after setting up CSS variables and shadcn tokens, Claude repeatedly hardcoded colors. Used raw <code>&lt;input&gt;</code> instead of shadcn Input. Had to get angry and add strict rules to CLAUDE.md. Only then it stopped.</div>
+      </div>
+      <div class="card" style="border-color: rgba(239,68,68,0.2)">
+        <div class="lesson-number" style="color: #f87171">D3 graph</div>
+        <div class="lesson-title">Expand/collapse cycle completely broken</div>
+        <div class="lesson-desc">First D3 graph implementation: no drag, no dedup, broken zoom, tooltip appeared randomly. Needed a <strong>full rewrite</strong>. Then expand-collapse toggled wrong state &mdash; double-toggle bug. Took 4 fix commits.</div>
+      </div>
+      <div class="card" style="border-color: rgba(239,68,68,0.2)">
+        <div class="lesson-number" style="color: #f87171">Heatmap API</div>
+        <div class="lesson-title">Infinite API calls crashing the backend</div>
+        <div class="lesson-desc">First heatmap implementation fired hundreds of TMDb API calls (one per genre+decade combo). Had to say "Heatmap is full shit, it triggers infinite calls." Rewritten to use just 5 batched calls.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 11: Lessons Learned -->
+  <div class="slide left-align">
+    <div class="orb orb-3"></div>
+    <div class="section-label fade-up">5 &mdash; Lessons Learned</div>
+    <h2 class="fade-up">What <span class="gradient-text">actually worked</span></h2>
+    <div class="card-grid cols-2 fade-up" style="margin-top: 20px">
+      <div class="card">
+        <div class="lesson-number">01</div>
+        <div class="lesson-title">CLAUDE.md is the most important file</div>
+        <div class="lesson-desc">Every time Claude broke a rule, I added it to CLAUDE.md. By commit 10, it stopped making those mistakes. The rules file grew WITH the project.</div>
+      </div>
+      <div class="card">
+        <div class="lesson-number">02</div>
+        <div class="lesson-title">Multi-agent = massive parallelism</div>
+        <div class="lesson-desc">2 devs built Timeline+Heatmap simultaneously. 3 devs built 3 features in parallel. 5 QA agents wrote 345 tests in one pass. Architect reviewed each batch.</div>
+      </div>
+      <div class="card">
+        <div class="lesson-number">03</div>
+        <div class="lesson-title">You must review like a tech lead</div>
+        <div class="lesson-desc">Claude writes code fast but makes subtle UI/UX mistakes. I caught every overflow-hidden, every hardcoded color, every broken interaction. The human eye is still essential.</div>
+      </div>
+      <div class="card">
+        <div class="lesson-number">04</div>
+        <div class="lesson-title">Worktrees prevent agent collisions</div>
+        <div class="lesson-desc">Each parallel agent got its own git worktree. No merge conflicts, no file stomping. Architect merged the results after reviewing.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 11: Thank You -->
+  <div class="slide center">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="section-label fade-up">Thank You</div>
+    <h1 class="fade-up"><span class="gradient-text">Movie Universe</span><br>Explorer</h1>
+    <p class="subtitle fade-up">One developer + Claude agents &mdash; from CLAUDE.md to production in 26 commits</p>
+    <div class="tech-grid fade-up" style="margin-top: 20px">
+      <span class="tech-badge">7K+ lines</span>
+      <span class="tech-badge">44 components</span>
+      <span class="tech-badge">345 tests</span>
+      <span class="tech-badge">5 visualizations</span>
+      <span class="tech-badge">3 Docker containers</span>
+    </div>
+    <div class="code-block fade-up" style="margin-top: 28px; text-align:center; font-size: 1.05rem;">
+      <span class="keyword">$</span> docker compose up --build -d<br>
+      <span class="keyword">$</span> npm run test:e2e:demo
+    </div>
+  </div>
+
+</div>
+
+<!-- Navigation bar -->
+<div class="progress-bar" id="progress"></div>
+<div class="nav-bar">
+  <button class="nav-btn" id="prevBtn" title="Previous (Left Arrow)">&#8592;</button>
+  <span class="nav-counter" id="counter">1 / 12</span>
+  <button class="nav-btn" id="nextBtn" title="Next (Right Arrow)">&#8594;</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide')
+  const progress = document.getElementById('progress')
+  const counter = document.getElementById('counter')
+  const prevBtn = document.getElementById('prevBtn')
+  const nextBtn = document.getElementById('nextBtn')
+  let current = 0
+  let direction = 1 // 1 = forward, -1 = backward
+
+  function goTo(n) {
+    if (n < 0 || n >= slides.length) return
+    direction = n > current ? 1 : -1
+
+    // Remove active from current
+    const old = slides[current]
+    old.classList.remove('active')
+    old.classList.add(direction === 1 ? 'enter-left' : 'enter-right')
+
+    // Reset fade animations on old slide
+    old.querySelectorAll('.fade-up').forEach(el => {
+      el.style.animation = 'none'
+      void el.offsetHeight
+      el.style.animation = ''
+    })
+
+    current = n
+
+    // Prepare new slide entry direction
+    const next = slides[current]
+    slides.forEach(s => { s.classList.remove('enter-left', 'enter-right') })
+    next.classList.add(direction === 1 ? 'enter-right' : 'enter-left')
+
+    // Force reflow then activate
+    void next.offsetHeight
+    next.classList.remove('enter-left', 'enter-right')
+    next.classList.add('active')
+
+    // Update UI
+    progress.style.width = ((current / (slides.length - 1)) * 100) + '%'
+    counter.textContent = (current + 1) + ' / ' + slides.length
+    prevBtn.disabled = current === 0
+    nextBtn.disabled = current === slides.length - 1
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); goTo(current + 1) }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); goTo(current - 1) }
+    if (e.key === 'Home') { e.preventDefault(); goTo(0) }
+    if (e.key === 'End') { e.preventDefault(); goTo(slides.length - 1) }
+  })
+
+  // Button navigation
+  prevBtn.addEventListener('click', (e) => { e.stopPropagation(); goTo(current - 1) })
+  nextBtn.addEventListener('click', (e) => { e.stopPropagation(); goTo(current + 1) })
+
+  goTo(0)
+</script>
+
+</body>
+</html>
