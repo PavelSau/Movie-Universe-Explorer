@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import rateLimit from 'express-rate-limit'
 import { config } from './config.js'
 import { searchRoutes } from './routes/search.routes.js'
 import { trendingRoutes } from './routes/trending.routes.js'
@@ -14,8 +15,31 @@ import { errorHandler } from './middleware/errorHandler.js'
 
 const app = express()
 
-app.use(cors())
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  credentials: true,
+}))
 app.use(express.json())
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later', code: 429 },
+})
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many auth attempts, please try again later', code: 429 },
+})
+
+app.use('/api', apiLimiter)
+app.use('/api/auth/login', authLimiter)
+app.use('/api/auth/register', authLimiter)
 
 app.use('/api/search', searchRoutes)
 app.use('/api/trending', trendingRoutes)

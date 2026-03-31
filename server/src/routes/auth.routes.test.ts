@@ -68,12 +68,24 @@ describe('auth routes - POST /login', () => {
     await handler(req, res, next)
 
     expect(res.status).toHaveBeenCalledWith(400)
-    expect(res._body).toEqual({ error: 'Username and password are required', code: 400 })
+    expect((res._body as Record<string, unknown>).code).toBe(400)
+    expect((res._body as Record<string, unknown>).error).toBeTruthy()
   })
 
   it('returns 400 when password is missing', async () => {
     const handler = await getRouteHandler('/login', 'post')
     const req = createMockReq({ username: 'john' })
+    const res = createMockRes()
+    const next = vi.fn()
+
+    await handler(req, res, next)
+
+    expect(res.status).toHaveBeenCalledWith(400)
+  })
+
+  it('returns 400 when body is empty', async () => {
+    const handler = await getRouteHandler('/login', 'post')
+    const req = createMockReq({})
     const res = createMockRes()
     const next = vi.fn()
 
@@ -165,10 +177,8 @@ describe('auth routes - POST /register', () => {
     await handler(req, res, next)
 
     expect(res.status).toHaveBeenCalledWith(400)
-    expect(res._body).toEqual({
-      error: 'Username, password, and display name are required',
-      code: 400,
-    })
+    expect((res._body as Record<string, unknown>).code).toBe(400)
+    expect((res._body as Record<string, unknown>).error).toBeTruthy()
   })
 
   it('returns 400 when username is too short', async () => {
@@ -180,10 +190,8 @@ describe('auth routes - POST /register', () => {
     await handler(req, res, next)
 
     expect(res.status).toHaveBeenCalledWith(400)
-    expect(res._body).toEqual({
-      error: 'Username must be 3+ chars, password 6+ chars',
-      code: 400,
-    })
+    expect((res._body as Record<string, unknown>).code).toBe(400)
+    expect((res._body as Record<string, unknown>).error).toContain('Username must be at least 3 characters')
   })
 
   it('returns 400 when password is too short', async () => {

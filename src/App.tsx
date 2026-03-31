@@ -7,6 +7,7 @@ import { useAuthStore, setQueryClientRef } from '@/stores/useAuthStore'
 import { Header } from '@/components/layout/Header'
 import { HomePage } from '@/pages/HomePage'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary'
 
 const MovieDetailPage = lazy(() =>
   import('@/pages/MovieDetailPage').then((m) => ({ default: m.MovieDetailPage }))
@@ -57,19 +58,19 @@ function AppContent() {
           <Route path="/" element={<HomePage />} />
           <Route
             path="/movie/:id"
-            element={<Suspense fallback={<PageSkeleton />}><MovieDetailPage /></Suspense>}
+            element={<ErrorBoundary fallbackTitle="Failed to load movie"><Suspense fallback={<PageSkeleton />}><MovieDetailPage /></Suspense></ErrorBoundary>}
           />
           <Route
             path="/person/:id"
-            element={<Suspense fallback={<PageSkeleton />}><PersonDetailPage /></Suspense>}
+            element={<ErrorBoundary fallbackTitle="Failed to load person"><Suspense fallback={<PageSkeleton />}><PersonDetailPage /></Suspense></ErrorBoundary>}
           />
           <Route
             path="/heatmap"
-            element={<Suspense fallback={<PageSkeleton />}><HeatmapPage /></Suspense>}
+            element={<ErrorBoundary fallbackTitle="Failed to load heatmap"><Suspense fallback={<PageSkeleton />}><HeatmapPage /></Suspense></ErrorBoundary>}
           />
           <Route
             path="/wishlist"
-            element={<Suspense fallback={<PageSkeleton />}><WishlistPage /></Suspense>}
+            element={<ErrorBoundary fallbackTitle="Failed to load wishlist"><Suspense fallback={<PageSkeleton />}><WishlistPage /></Suspense></ErrorBoundary>}
           />
         </Routes>
       </div>

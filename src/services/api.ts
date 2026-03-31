@@ -19,6 +19,11 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // On 401, clear the stored token to prevent retrying with an invalid token
+    if (error.response?.status === 401) {
+      localStorage.removeItem('auth_token')
+    }
+
     const message = error.response?.data?.error || 'Something went wrong'
     return Promise.reject(new Error(message))
   },

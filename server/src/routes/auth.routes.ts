@@ -1,19 +1,34 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+import { z } from 'zod'
 import { pool } from '../services/db.js'
 import { config } from '../config.js'
+
+const loginSchema = z.object({
+  username: z.string().min(1, 'Username is required'),
+  password: z.string().min(1, 'Password is required'),
+})
+
+const registerSchema = z.object({
+  username: z.string().min(3, 'Username must be at least 3 characters'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  displayName: z.string().min(1, 'Display name is required'),
+})
 
 const router = Router()
 
 router.post('/login', async (req, res, next) => {
   try {
-    const { username, password } = req.body
-
-    if (!username || !password) {
-      res.status(400).json({ error: 'Username and password are required', code: 400 })
+    const parsed = loginSchema.safeParse(req.body)
+    if (!parsed.success) {
+      const errors = parsed.error.flatten().fieldErrors
+      const message = Object.values(errors).flat().join(', ') || 'Invalid input'
+      res.status(400).json({ error: message, code: 400 })
       return
     }
+
+    const { username, password } = parsed.data
 
     const result = await pool.query(
       'SELECT id, username, password_hash, display_name FROM users WHERE username = $1',
@@ -54,17 +69,15 @@ router.post('/login', async (req, res, next) => {
 
 router.post('/register', async (req, res, next) => {
   try {
-    const { username, password, displayName } = req.body
-
-    if (!username || !password || !displayName) {
-      res.status(400).json({ error: 'Username, password, and display name are required', code: 400 })
+    const parsed = registerSchema.safeParse(req.body)
+    if (!parsed.success) {
+      const errors = parsed.error.flatten().fieldErrors
+      const message = Object.values(errors).flat().join(', ') || 'Invalid input'
+      res.status(400).json({ error: message, code: 400 })
       return
     }
 
-    if (username.length < 3 || password.length < 6) {
-      res.status(400).json({ error: 'Username must be 3+ chars, password 6+ chars', code: 400 })
-      return
-    }
+    const { username, password, displayName } = parsed.data
 
     const existing = await pool.query('SELECT id FROM users WHERE username = $1', [username])
     if (existing.rows.length > 0) {

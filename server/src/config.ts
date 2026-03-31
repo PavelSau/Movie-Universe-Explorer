@@ -10,10 +10,15 @@ export const config = {
   tmdbApiKey: process.env.TMDB_API_KEY || '',
   tmdbBaseUrl: process.env.TMDB_BASE_URL || 'https://api.themoviedb.org/3',
   databaseUrl: process.env.DATABASE_URL || '',
-  jwtSecret: process.env.JWT_SECRET || 'dev-fallback-secret',
+  jwtSecret: process.env.JWT_SECRET || '',
 }
 
 if (!config.tmdbApiKey || config.tmdbApiKey === 'your_tmdb_api_key_here') {
   console.error('TMDB_API_KEY is not set in .env file')
+  process.exit(1)
+}
+
+if (!config.jwtSecret) {
+  console.error('JWT_SECRET is not set in .env file')
   process.exit(1)
 }

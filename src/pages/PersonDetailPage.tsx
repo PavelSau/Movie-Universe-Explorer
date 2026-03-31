@@ -15,12 +15,29 @@ import { Separator } from '@/components/ui/separator'
 import { PROFILE_SIZES } from '@/utils/constants'
 import { formatDate, calculateAge } from '@/utils/formatters'
 
+function isValidId(value: string | undefined): value is string {
+  if (!value) return false
+  const num = Number(value)
+  return Number.isInteger(num) && num > 0
+}
+
 export function PersonDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const personId = Number(id)
+  const personId = isValidId(id) ? Number(id) : 0
   const { data: person, isLoading, error } = usePersonDetails(personId)
   const { data: credits, isLoading: creditsLoading } = usePersonCredits(personId)
   const [showFullBio, setShowFullBio] = useState(false)
+
+  if (!isValidId(id)) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6 lg:px-8">
+        <p className="text-destructive text-lg">Invalid person ID</p>
+        <Button variant="outline" className="mt-4" onClick={() => window.history.back()}>
+          <ArrowLeft size={16} /> Back to Home
+        </Button>
+      </div>
+    )
+  }
 
   if (isLoading) return <PersonDetailSkeleton />
   if (error || !person) {

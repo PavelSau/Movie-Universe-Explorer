@@ -19,5 +19,6 @@ export const PROFILE_SIZES = {
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
 
 export const SEARCH_DEBOUNCE_MS = 300
+export const SEARCH_MAX_LENGTH = 100
 
 export const MAX_GRAPH_CHILD_NODES = Number(import.meta.env.VITE_MAX_GRAPH_CHILD_NODES) || 50

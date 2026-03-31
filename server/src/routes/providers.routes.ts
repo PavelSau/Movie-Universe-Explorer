@@ -6,7 +6,11 @@ const router = Router()
 
 router.get('/:id', cacheMiddleware(3600), async (req, res, next) => {
   try {
-    const { id } = req.params
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: 'Invalid ID', code: 400 })
+      return
+    }
     const response = await tmdbClient.get(`/movie/${id}/watch/providers`)
     const results = response.data.results || {}
 

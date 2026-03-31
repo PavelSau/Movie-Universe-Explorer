@@ -14,11 +14,28 @@ import { Separator } from '@/components/ui/separator'
 import { BACKDROP_SIZES, PROFILE_SIZES } from '@/utils/constants'
 import { formatRuntime, formatCurrency, formatDate } from '@/utils/formatters'
 
+function isValidId(value: string | undefined): value is string {
+  if (!value) return false
+  const num = Number(value)
+  return Number.isInteger(num) && num > 0
+}
+
 export function MovieDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const movieId = Number(id)
+  const movieId = isValidId(id) ? Number(id) : 0
   const { data: movie, isLoading, error } = useMovieDetails(movieId)
   const { data: credits } = useMovieCredits(movieId)
+
+  if (!isValidId(id)) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-20 text-center sm:px-6 lg:px-8">
+        <p className="text-destructive text-lg">Invalid movie ID</p>
+        <Button variant="outline" className="mt-4" onClick={() => window.history.back()}>
+          <ArrowLeft size={16} /> Back to Home
+        </Button>
+      </div>
+    )
+  }
 
   if (isLoading) return <MovieDetailSkeleton />
   if (error || !movie) {

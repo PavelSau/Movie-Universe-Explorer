@@ -6,7 +6,7 @@ import { useMovieSearch } from '@/hooks/useMovieSearch'
 import { SearchResults } from '@/components/search/SearchResults'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { SEARCH_DEBOUNCE_MS } from '@/utils/constants'
+import { SEARCH_DEBOUNCE_MS, SEARCH_MAX_LENGTH } from '@/utils/constants'
 import { cn } from '@/lib/utils'
 
 export function SearchBar() {
@@ -64,8 +64,9 @@ export function SearchBar() {
           variant="ghost"
           type="text"
           value={inputValue}
+          maxLength={SEARCH_MAX_LENGTH}
           onChange={(e) => {
-            setInputValue(e.target.value)
+            setInputValue(e.target.value.slice(0, SEARCH_MAX_LENGTH))
             setIsOpen(true)
           }}
           onFocus={() => setIsOpen(true)}

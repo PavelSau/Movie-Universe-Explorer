@@ -1,6 +1,26 @@
 import { Router } from 'express'
+import { z } from 'zod'
 import { pool } from '../services/db.js'
 import { requireAuth, type AuthRequest } from '../middleware/auth.js'
+
+const entityTypeSchema = z.enum(['movie', 'person'])
+
+const wishlistCheckSchema = z.object({
+  entityType: entityTypeSchema,
+  entityId: z.coerce.number().int().positive(),
+})
+
+const wishlistAddSchema = z.object({
+  entityType: entityTypeSchema,
+  entityId: z.number().int().positive(),
+  title: z.string().min(1),
+  posterPath: z.string().nullable().optional(),
+})
+
+const wishlistRemoveSchema = z.object({
+  entityType: entityTypeSchema,
+  entityId: z.number().int().positive(),
+})
 
 const router = Router()
 
@@ -40,16 +60,17 @@ router.get('/', async (req: AuthRequest, res, next) => {
 // Check if an entity is in the wishlist
 router.get('/check', async (req: AuthRequest, res, next) => {
   try {
-    const { entityType, entityId } = req.query
-
-    if (!entityType || !entityId) {
+    const parsed = wishlistCheckSchema.safeParse(req.query)
+    if (!parsed.success) {
       res.status(400).json({ error: 'entityType and entityId are required', code: 400 })
       return
     }
 
+    const { entityType, entityId } = parsed.data
+
     const result = await pool.query(
       'SELECT id FROM wishlists WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3',
-      [req.userId!, entityType, Number(entityId)],
+      [req.userId!, entityType, entityId],
     )
 
     res.json({ inWishlist: result.rows.length > 0 })
@@ -61,17 +82,18 @@ router.get('/check', async (req: AuthRequest, res, next) => {
 // Add to wishlist
 router.post('/', async (req: AuthRequest, res, next) => {
   try {
-    const { entityType, entityId, title, posterPath } = req.body
-
-    if (!entityType || !entityId || !title) {
+    const parsed = wishlistAddSchema.safeParse(req.body)
+    if (!parsed.success) {
+      const errors = parsed.error.flatten().fieldErrors
+      if (errors.entityType) {
+        res.status(400).json({ error: 'entityType must be movie or person', code: 400 })
+        return
+      }
       res.status(400).json({ error: 'entityType, entityId, and title are required', code: 400 })
       return
     }
 
-    if (entityType !== 'movie' && entityType !== 'person') {
-      res.status(400).json({ error: 'entityType must be movie or person', code: 400 })
-      return
-    }
+    const { entityType, entityId, title, posterPath } = parsed.data
 
     const result = await pool.query(
       `INSERT INTO wishlists (user_id, entity_type, entity_id, title, poster_path)
@@ -103,12 +125,13 @@ router.post('/', async (req: AuthRequest, res, next) => {
 // Remove from wishlist
 router.delete('/', async (req: AuthRequest, res, next) => {
   try {
-    const { entityType, entityId } = req.body
-
-    if (!entityType || !entityId) {
+    const parsed = wishlistRemoveSchema.safeParse(req.body)
+    if (!parsed.success) {
       res.status(400).json({ error: 'entityType and entityId are required', code: 400 })
       return
     }
+
+    const { entityType, entityId } = parsed.data
 
     await pool.query(
       'DELETE FROM wishlists WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3',

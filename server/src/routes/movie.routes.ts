@@ -6,7 +6,11 @@ const router = Router()
 
 router.get('/:id', cacheMiddleware(3600), async (req, res, next) => {
   try {
-    const { id } = req.params
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: 'Invalid ID', code: 400 })
+      return
+    }
     const response = await tmdbClient.get(`/movie/${id}`)
     const m = response.data
 
@@ -43,7 +47,11 @@ router.get('/:id', cacheMiddleware(3600), async (req, res, next) => {
 
 router.get('/:id/credits', cacheMiddleware(3600), async (req, res, next) => {
   try {
-    const { id } = req.params
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: 'Invalid ID', code: 400 })
+      return
+    }
     const response = await tmdbClient.get(`/movie/${id}/credits`)
 
     const cast = (response.data.cast || [])
@@ -78,7 +86,11 @@ router.get('/:id/credits', cacheMiddleware(3600), async (req, res, next) => {
 
 router.get('/:id/videos', cacheMiddleware(3600), async (req, res, next) => {
   try {
-    const { id } = req.params
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: 'Invalid ID', code: 400 })
+      return
+    }
     const response = await tmdbClient.get(`/movie/${id}/videos`)
 
     const videos = (response.data.results || [])
@@ -102,7 +114,11 @@ router.get('/:id/videos', cacheMiddleware(3600), async (req, res, next) => {
 
 router.get('/:id/similar', cacheMiddleware(3600), async (req, res, next) => {
   try {
-    const { id } = req.params
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: 'Invalid ID', code: 400 })
+      return
+    }
     const response = await tmdbClient.get(`/movie/${id}/similar`)
     const results = (response.data.results || [])
       .slice(0, 10)
@@ -122,7 +138,11 @@ router.get('/:id/similar', cacheMiddleware(3600), async (req, res, next) => {
 
 router.get('/:id/recommendations', cacheMiddleware(3600), async (req, res, next) => {
   try {
-    const { id } = req.params
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: 'Invalid ID', code: 400 })
+      return
+    }
     const response = await tmdbClient.get(`/movie/${id}/recommendations`)
     const results = (response.data.results || [])
       .slice(0, 10)
