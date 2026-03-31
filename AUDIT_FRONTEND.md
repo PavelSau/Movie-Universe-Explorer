@@ -87,36 +87,27 @@
 
 ## 2. Security Review
 
-### Critical Issues
+### Fixed Issues
 
-**S1. JWT fallback secret is hardcoded**
-- **File:** `server/src/config.ts` (line 13)
-- `jwtSecret: process.env.JWT_SECRET || 'dev-fallback-secret'` -- if `JWT_SECRET` is not set in production, all tokens are signed with a publicly known secret. Unlike the TMDB key which causes `process.exit(1)` when missing, the JWT secret silently falls back.
-- **Recommendation:** Add a similar check: if `!config.jwtSecret || config.jwtSecret === 'dev-fallback-secret'` in production, exit with an error.
+**~~S1. JWT fallback secret is hardcoded~~ — FIXED**
+- Server now exits with error if `JWT_SECRET` is missing (`server/src/config.ts` lines 21-24). No fallback.
 
-**S2. CORS is wide open**
-- **File:** `server/src/index.ts` (line 17)
-- `app.use(cors())` with no configuration allows requests from any origin. In production, this should be restricted to the frontend's domain.
-- **Recommendation:** Configure CORS with specific allowed origins: `cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' })`.
+**~~S2. CORS is wide open~~ — FIXED**
+- CORS restricted to `CORS_ORIGIN` env var with `http://localhost:5173` default (`server/src/index.ts`).
+
+**~~S4. No rate limiting on auth endpoints~~ — FIXED**
+- General API limiter (100 req/15min) + strict auth limiter (10 req/15min) added via `express-rate-limit`.
+
+### Remaining Warnings
 
 **S3. Auth token stored in localStorage**
-- **Files:** `src/stores/useAuthStore.ts`, `src/services/api.ts`
-- JWT tokens are stored in `localStorage` and attached via an axios interceptor. This makes them vulnerable to XSS attacks -- any injected script can read `localStorage.getItem('auth_token')` and exfiltrate the token.
-- While the app doesn't use `dangerouslySetInnerHTML` (confirmed: zero occurrences), localStorage-based token storage is inherently less secure than httpOnly cookies.
-- **Recommendation:** For a production deployment, consider httpOnly cookies with SameSite=Strict. For a portfolio/demo project, the current approach is acceptable with the understanding that XSS prevention at the input level is the primary defense.
-
-### Warnings
-
-**S4. No rate limiting on auth endpoints**
-- **File:** `server/src/routes/auth.routes.ts`
-- The login and register endpoints have no rate limiting, making them vulnerable to brute-force attacks.
+- JWT tokens in `localStorage` are XSS-accessible. No `dangerouslySetInnerHTML` exists (confirmed), and the API interceptor now clears tokens on 401 responses. For production, httpOnly cookies would be better. Acceptable for demo.
 
 **S5. No CSRF protection**
-- The server uses token-based auth (Bearer tokens), which is inherently CSRF-resistant for API calls. However, there's no `SameSite` cookie attribute since cookies aren't used. Current implementation is acceptable.
+- Bearer token auth is inherently CSRF-resistant. Acceptable.
 
 **S6. Demo credentials hardcoded in the UI**
-- **File:** `src/components/auth/AuthDialog.tsx` (lines 111-124)
-- The password `password123` is shown in the UI for demo accounts. This is intentional for a demo app but should be noted as a production risk.
+- Intentional for demo. Production risk if not removed.
 
 ### Passed Checks
 
