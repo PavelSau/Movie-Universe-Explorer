@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 
+# Test coverage
+coverage/
+
 # Playwright
 e2e/screenshots/
 test-results/
